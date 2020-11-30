@@ -72,7 +72,7 @@ PriorityQueue pqCreate(CopyPQElement copy_element,
         copy_priority == NULL || free_priority == NULL || compare_priorities == NULL) {
         return NULL;
     }
-    PriorityQueue queue = malloc(sizeof(PriorityQueue));
+    PriorityQueue queue = malloc(sizeof(*queue));
     if (queue == NULL) {
         return NULL;
     }
