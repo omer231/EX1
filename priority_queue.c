@@ -1,462 +1,941 @@
-/**
- * I want to create a list-based queue, with each node having some data and a priority
- * The order of the queue will be through the nodes, each new addition will be sorted and placed from highest
- * priority to lowest priority
- * I will remember the first and last nodes in the queue in order to compare priorities
-**/
 
 #include <stdlib.h>
-#include <stdbool.h>
+#include "test_utilities.h"
 #include "priority_queue.h"
 
-#define ELEMENT_NOT_FOUND -1
-#define SIZE_WITHOUT_FIRST_AND_LAST -2
+#define PQ PriorityQueue
 
-typedef struct pqNode_t *pqNode;
 
-/*
- * STRUCTS
- */
-
-/**
- * Struct representing a single node inside the queue
- */
-struct pqNode_t {
-    PQElement *element;
-    PQElementPriority *priority;
-    pqNode *next;
-};
-/**
- * Struct representing the queue, with the first and last nodes linked, size in integer, iterator for users,
- * and all functions that the user supplies
- */
-struct PriorityQueue_t {
-    CopyPQElement copyElement;
-    FreePQElement freeElement;
-    EqualPQElements equalElements;
-    CopyPQElementPriority copyPriority;
-    FreePQElementPriority freePriority;
-    ComparePQElementPriorities comparePriorities;
-    int iterator;
-    int size;
-    pqNode first;
-};
-
-/*
- * STATIC FUNCTIONS FOR pqNode
- */
-/**
- * pqNodeIterator: Goes over the number of nodes the iterator points to, recursively
- * @param node - first node, iterating down from there
- * @param iterator - the number of nodes to go down to
- * @return
- *      if the iterator reached 0, the node that it stopped on will be returned
- *      otherwise, pqNodeIterate with the next node and iterator -1
- */
-static pqNode pqNodeIterate(pqNode node, int iterator) {
-    if (node == NULL) {
+static PQElementPriority copyIntGeneric(PQElementPriority n) {
+    if (!n) {
         return NULL;
     }
-    while (iterator > 0) {
-        node = (pqNode) node->next;
-        return pqNodeIterate(node, iterator - 1);
+    int *copy = malloc(sizeof(*copy));
+    if (!copy) {
+        return NULL;
     }
-    return node;
+    *copy = *(int *) n;
+    return copy;
 }
 
-/**
- * pqNodeCreate: Creates a new node with provided element, priority and next, each of them can be set to NULL
- * @param element
- * @param priority
- * @param next
- * @param queue - the queue we're using in order to get queue functions
- * @return
- *      NULL if memory allocation failed
- *      the new node if it didn't
- */
-static pqNode pqNodeCreate(PQElement element, PQElementPriority priority, pqNode next, PriorityQueue queue) {
-    pqNode node = malloc(sizeof(*node));
-    if (node == NULL) {
-        return NULL;
-    }
-    node->element = queue->copyElement(element);
-    node->priority = queue->copyPriority(priority);
-    node->next = (pqNode *) next;
-    return node;
+static void freeIntGeneric(PQElementPriority n) {
+    free(n);
 }
 
-/**
- * pqNodeGetElement: Retrieve the element from current node
- * @param node - the node whose element the function returns
- * @return
- *      node->element
- */
-static PQElement pqNodeGetElement(pqNode node) {
-    if (node == NULL) {
-        return NULL;
-    }
-    return node->element;
+static int compareIntsGeneric(PQElementPriority n1, PQElementPriority n2) {
+    return (*(int *) n1 - *(int *) n2);
 }
 
-/**
- * pqNodeGetPriority: Retrieve the priority from the current node
- * @param node - the node whose priority the function returns
- * @return
- *      node->priority
- */
-static PQElementPriority pqNodeGetPriority(pqNode node) {
-    if (node == NULL) {
-        return NULL;
-    }
-    return node->priority;
-}
-
-/**
- * pqNodeGetNext: Retrieve the next node from the current node
- * @param node - the node whose next node the function returns
- * @return
- *      (pqNode) node->next
- */
-static pqNode pqNodeGetNext(pqNode node) {
-    if (node == NULL) {
-        return NULL;
-    }
-    return (pqNode) node->next;
-}
-
-/**
- * pqNodeCopy: Creates a copy of a single node
- * @param node
- * @param queue - the queue we're using in order to get queue functions
- * @return
- *      NULL if the node wasn't successfully created
- *      the new node otherwise
-*/
-static pqNode pqNodeCopy(pqNode node, PriorityQueue queue) {
-    if (node == NULL || queue == NULL) {
-        return NULL;
-    }
-    pqNode new_node = pqNodeCreate(pqNodeGetElement(node), pqNodeGetPriority(node), pqNodeGetNext(node), queue);
-    if (new_node == NULL) {
-        return NULL;
-    }
-    return new_node;
-}
-
-/**
- * pqNodeCopyFull: Creates a copy of all linked nodes, recursively
- * @param node
- * @param queue - the queue we're using in order to get queue functions
- * @return
- *      NULL if the node(s) weren't successfully created
- *      the new copied top of the node (I hope)
- */
-static pqNode pqNodeCopyFull(pqNode node, PriorityQueue queue) {
-    if (node == NULL || queue == NULL) {
-        return NULL;
-    }
-    pqNode new_node = pqNodeCopy(node, queue);
-    if (new_node == NULL) {
-        return NULL;
-    }
-    new_node->next = (pqNode *) pqNodeCopyFull(pqNodeGetNext(node), queue);
-    return new_node;
+static bool equalIntsGeneric(PQElementPriority n1, PQElementPriority n2) {
+    return *(int *) n1 == *(int *) n2;
 }
 
 
-/*
- * STATIC FUNCTIONS FOR PriorityQueue
- */
-/**
- * isPQEmpty: whether the queue is empty
- * @param queue - the queue the function checks
- * @return
- *      TRUE if the queue is empty according to pqGetSize
- *      FALSE is the queue is not empty
- */
-static bool isPQEmpty(PriorityQueue queue) {
-    return (pqGetSize(queue) == 0);
+int *randInt() {
+    int *num = malloc(sizeof(int));
+    *num = rand() % 50000;
+    return num;
 }
 
-/**
- * pqNodeSame: Checks if the node has the element and priority specified, priority can be set to NULL and if so only
- * element will be checked
- * @param queue
- * @param element
- * @param priority
- * @param node
- * @return
- *      TRUE if the node has the element and priority/only element if priority is NULL
- *      FALSE if not or if NULL was sent as parameter in node or element
- */
-static bool pqNodeSame(PriorityQueue queue, PQElement element, PQElementPriority priority, pqNode node) {
-    if (element == NULL || node == NULL) {
-        return false;
-    }
-    if (queue->equalElements(element, pqNodeGetElement(node))) {
-        if (priority == NULL || queue->comparePriorities(priority, pqNodeGetPriority(node)) == 0) {
-            return true;
-        }
-    }
-    return false;
+PriorityQueue createPQ() {
+    PriorityQueue pq = pqCreate(copyIntGeneric, freeIntGeneric, equalIntsGeneric, copyIntGeneric, freeIntGeneric,
+                                compareIntsGeneric);
+    return pq;
 }
 
-/**
- * pqContainsWithPriority: Checks if a certain element with a certain priority (can be set to NULL as to ignore
- * priority) exist in queue
- * @param queue
- * @param element
- * @param priority
- * @return
- */
-static bool pqContainsWithPriority(PriorityQueue queue, PQElement element, PQElementPriority priority) {
-    if (queue == NULL || element == NULL) {
-        return NULL;
+PriorityQueue getSingleElementPQ() {
+    PriorityQueue pq = createPQ();
+    int *element = randInt();
+    int *priority = randInt();
+    pqInsert(pq, element, priority);
+    free(element);
+    free(priority);
+    return pq;
+}
+
+static int zzz = 10; //@@@
+PriorityQueue getMultipleElementPQ() {
+    PriorityQueue pq = createPQ();
+    for (int i = 0; i < 10; i++) {
+        int *element = randInt();
+        int *priority = randInt();
+        *element = --zzz; //@@@
+        *priority = 100 + zzz; //@@@
+        pqInsert(pq, element, priority);
+        free(element);
+        free(priority);
     }
-    pqNode temp = pqNodeCopy(queue->first, queue);
-    int size = queue->size;
-    while (size != 0) {
-        if (pqNodeSame(queue, element, priority, temp) == false) {
-            if (temp->next != NULL) {
-                temp = (pqNode) temp->next;
-            } else {
-                break;
-            }
+    return pq;
+}
+
+
+/* ============= TESTING pqCreate ============= */
+bool testPQCreateStandardTest() {
+    bool result = true;
+    PQ pq = createPQ();
+    ASSERT_TEST(pq != NULL, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+/* ============= TESTING pqDestroy ============= */
+bool testMemoryPQDestroyEmptyPQ() {
+    PriorityQueue pq = createPQ();
+    pqDestroy(pq);
+    return true;
+}
+
+bool testMemoryPQDestroySingleElement() {
+    PriorityQueue pq = getSingleElementPQ();
+    pqDestroy(pq);
+    return true;
+}
+
+bool testMemoryPQDestroyMultipleElement() {
+    PriorityQueue pq = getMultipleElementPQ();
+    pqDestroy(pq);
+
+    return true;
+}
+
+/* ============= TESTING pqCopy ============= */
+bool testPQCopySampleNULLArgument() {
+    PQ new_pq = pqCopy(NULL);
+    return new_pq == NULL;
+}
+
+bool testPQCopySingleElement() {
+    bool result = true;
+    PQ pq = getSingleElementPQ();
+    PQ new_pq = pqCopy(pq);
+    ASSERT_TEST(new_pq != NULL, destroy);
+    ASSERT_TEST(compareIntsGeneric(pqGetFirst(new_pq), pqGetFirst(pq)) == 0, destroy);
+    ASSERT_TEST(pqGetFirst(new_pq) != pqGetFirst(pq),
+                destroy); // Copy should create a new copy so the pointers shouldn't be pointing to the same address
+
+    destroy:
+    pqDestroy(pq);
+    pqDestroy(new_pq);
+    return result;
+}
+
+bool testPQCopyMultipleElement() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+    PQ new_pq = pqCopy(pq);
+    ASSERT_TEST(new_pq != NULL, destroy);
+
+    int *new_pq_current_elem = pqGetFirst(new_pq);
+    PQ_FOREACH(int *, pq_current_elem, pq) {
+        ASSERT_TEST(compareIntsGeneric(pq_current_elem, new_pq_current_elem) == 0, destroy);
+        ASSERT_TEST(pq_current_elem != new_pq_current_elem,
+                    destroy); // Copy should create a new copy so the pointers shouldn't be pointing to the same address
+        new_pq_current_elem = pqGetNext(new_pq);
+    }
+
+    destroy:
+    pqDestroy(pq);
+    pqDestroy(new_pq);
+    return result;
+}
+
+bool testPQCopyMultipleSameElementDifferentPriority() {
+    // This test checks that if the same element was inserted more than once with a different priority it is copied correctly
+    bool result = true;
+    PQ pq = getSingleElementPQ();
+    int *element = randInt();
+    int *priority1 = randInt();
+    int *priority2 = randInt();
+    int *priority3 = randInt();
+
+    pqInsert(pq, element, priority1);
+    pqInsert(pq, element, priority2);
+    pqInsert(pq, element, priority3);
+
+    PQ new_pq = pqCopy(pq);
+    ASSERT_TEST(new_pq != NULL, destroy);
+
+    int *new_pq_current_elem = pqGetFirst(new_pq);
+    PQ_FOREACH(int *, pq_current_elem, pq) {
+        ASSERT_TEST(compareIntsGeneric(pq_current_elem, new_pq_current_elem) == 0, destroy);
+        ASSERT_TEST(pq_current_elem != new_pq_current_elem,
+                    destroy); // Copy should create a new copy so the pointers shouldn't be pointing to the same address
+        new_pq_current_elem = pqGetNext(new_pq);
+    }
+
+    destroy:
+    free(element);
+    free(priority1);
+    free(priority2);
+    free(priority3);
+    pqDestroy(pq);
+    pqDestroy(new_pq);
+    return result;
+}
+
+// TODO: ADD
+bool testPQCopyMultipleSameElementSamePriority() {
+    // This test checks that if the same element was inserted more than once with the same priority it is copied correctly
+    bool result = true;
+    PQ pq = getSingleElementPQ();
+    int *element = randInt();
+    int *priority1 = randInt();
+    int *priority2 = randInt();
+
+    pqInsert(pq, element, priority1);
+    pqInsert(pq, element, priority1);
+    pqInsert(pq, element, priority2);
+    pqInsert(pq, element, priority1);
+
+    PQ new_pq = pqCopy(pq);
+    ASSERT_TEST(new_pq != NULL, destroy);
+
+    int *new_pq_current_elem = pqGetFirst(new_pq);
+    PQ_FOREACH(int *, pq_current_elem, pq) {
+        ASSERT_TEST(compareIntsGeneric(pq_current_elem, new_pq_current_elem) == 0, destroy);
+        ASSERT_TEST(pq_current_elem != new_pq_current_elem,
+                    destroy); // Copy should create a new copy so the pointers shouldn't be pointing to the same address
+        new_pq_current_elem = pqGetNext(new_pq);
+    }
+
+    destroy:
+    free(element);
+    free(priority1);
+    free(priority2);
+    pqDestroy(pq);
+    pqDestroy(new_pq);
+    return result;
+}
+
+
+/* ============= TESTING pqGetSize ============= */
+//TODO: ADD
+bool testPQGetSizeSampleNullArgument() {
+    bool result = true;
+    int size = pqGetSize(NULL);
+    ASSERT_TEST(size == -1, destroy);
+    destroy:
+    return result;
+}
+
+void pqInsertRandom(PriorityQueue queue) {
+    int *elem = randInt();
+    int *prio = randInt();
+    pqInsert(queue, elem, prio);
+    free(elem);
+    free(prio);
+}
+//TODO: ADD
+bool testPQGetSizeStandardTest() {
+    bool result = true;
+    PQ pq = getSingleElementPQ();
+    ASSERT_TEST(pqGetSize(pq) == 1, destroy);
+
+    pqInsertRandom(pq);
+    ASSERT_TEST(pqGetSize(pq) == 2, destroy);
+
+    pqInsertRandom(pq);
+    pqInsertRandom(pq);
+    ASSERT_TEST(pqGetSize(pq) == 4, destroy);
+
+    pqRemove(pq);
+    ASSERT_TEST(pqGetSize(pq) == 3, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+
+/* ============= TESTING pqContains ============= */
+// TODO: add
+bool testPQContainsSampleNullArgument() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    ASSERT_TEST(pqContains(pq, NULL) == false, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+
+}
+
+// TODO: add
+bool testPQContainsStandardTest() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+
+    int *elem = randInt();
+    pqInsert(pq, elem, elem);
+    ASSERT_TEST(pqContains(pq, elem) == true, destroy);
+
+    destroy:
+    free(elem);
+    pqDestroy(pq);
+    return result;
+}
+
+// TODO: add
+bool testPQContainsSameElementMultipleTimesAlsoWithDifferentPriority() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+
+    int *elem = randInt();
+    int *prio = randInt();
+    pqInsert(pq, elem, prio);
+    pqInsert(pq, elem, elem);
+    pqInsert(pq, elem, prio);
+
+    ASSERT_TEST(pqContains(pq, elem) == true, destroy);
+
+    destroy:
+    free(elem);
+    free(prio);
+    pqDestroy(pq);
+    return result;
+}
+
+// TODO: add
+bool testPQContainsFalseAfterRemove() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int *elem = randInt();
+    pqInsert(pq, elem, elem);
+    ASSERT_TEST(pqContains(pq, elem) == true, destroy);
+
+    pqRemove(pq);
+    ASSERT_TEST(pqContains(pq, elem) == false, destroy);
+
+    destroy:
+    free(elem);
+    pqDestroy(pq);
+    return result;
+}
+
+
+/* ============= TESTING pqInsert ============= */
+bool testPQInsertSampleNULLArgument() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int elem = 5;
+    ASSERT_TEST(pqInsert(pq, &elem, NULL) == PQ_NULL_ARGUMENT, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQInsertStandardTest() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int elem = 10;
+    ASSERT_TEST(pqInsert(pq, &elem, &elem) == PQ_SUCCESS, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQInsertPutsNewElementsInCorrectPlace() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int elem1 = 1;
+    int prio1 = 2;
+    pqInsert(pq, &elem1, &prio1);
+
+    int elem2 = 2;
+    int prio2 = 1;
+    pqInsert(pq, &elem2, &prio2);
+
+    int elem3 = 3;
+    int prio3 = 3;
+    pqInsert(pq, &elem3, &prio3);
+
+    ASSERT_TEST((*(int *) pqGetFirst(pq)) == 3, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == 1, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == 2, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+/* ============= TESTING pqChangePriority ============= */
+
+bool testPQChangePrioritySampleNullArgument() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int prio = 5;
+    ASSERT_TEST(pqChangePriority(pq, NULL, NULL, &prio) == PQ_NULL_ARGUMENT, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQChangePriorityNonExistentElement() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+
+    int elem1 = 10;
+    int old_prio = 20;
+    int new_prio = 15;
+    ASSERT_TEST(pqChangePriority(pq, &elem1, &old_prio, &new_prio) == PQ_ELEMENT_DOES_NOT_EXISTS, destroy);
+
+    pqInsert(pq, &elem1, &old_prio);
+    int wrong_old_prio = 1001;
+    ASSERT_TEST(pqChangePriority(pq, &elem1, &wrong_old_prio, &new_prio) == PQ_ELEMENT_DOES_NOT_EXISTS, destroy);
+
+    int wrong_elem = 1001;
+    ASSERT_TEST(pqChangePriority(pq, &wrong_elem, &old_prio, &new_prio) == PQ_ELEMENT_DOES_NOT_EXISTS, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQChangePriorityAlsoChangesPositionInQueue() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int elem1 = 1;
+    int prio1 = 1;
+    int elem2 = 2;
+    int prio2 = 2;
+    int elem3 = 3;
+    int prio3 = 3;
+    pqInsert(pq, &elem1, &prio1);
+    pqInsert(pq, &elem2, &prio2);
+    pqInsert(pq, &elem3, &prio3);
+
+    int new_prio2 = 5;
+    ASSERT_TEST(pqChangePriority(pq, &elem2, &prio2, &new_prio2) == PQ_SUCCESS, destroy);
+
+    ASSERT_TEST((*(int *) pqGetFirst(pq)) == 2, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == 3, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == 1, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQChangePriorityWOnlyChangesFirstOfMultipleSameElementsAndReinsertsIt() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int prio = 1;
+    int elem = 1;
+    pqInsert(pq, &elem, &prio);
+    pqInsert(pq, &elem, &prio);
+    pqInsert(pq, &elem, &prio);
+
+    int mid_elem = 5;
+    int mid_prio = 5;
+    pqInsert(pq, &mid_elem, &mid_prio);
+
+    int elem2 = 10;
+    int prio2 = 10;
+    pqInsert(pq, &elem2, &prio2);
+
+    int new_prio = prio2;
+    ASSERT_TEST(pqChangePriority(pq, &elem, &prio, &new_prio) == PQ_SUCCESS, destroy);
+
+    ASSERT_TEST((*(int *) pqGetFirst(pq)) == elem2, destroy); // Original elem2
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem, destroy); // Reinserted change prio
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == mid_elem, destroy); // Mid Elem
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem, destroy); // Left overs
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+
+/* ============= TESTING pqRemove ============= */
+
+bool testPQRemoveSampleNullArgument() {
+    bool result = true;
+    ASSERT_TEST(pqRemove(NULL) == PQ_NULL_ARGUMENT, destroy);
+
+    destroy:
+    return result;
+}
+
+bool testPQRemoveStandardTest() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+
+    pqRemove(pq);
+    pqRemove(pq);
+    pqRemove(pq);
+    ASSERT_TEST(pqGetSize(pq) == 7, destroy); // Test it removed 3 successfully
+
+    pqClear(pq);
+    int elem = 5;
+    pqInsert(pq, &elem, &elem);
+    int elem2 = 4;
+    pqInsert(pq, &elem2, &elem2);
+    pqRemove(pq);
+
+    ASSERT_TEST((*(int *) pqGetFirst(pq)) == elem2, destroy); // Checks it removes the highest priority
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+/* ============= TESTING pqRemoveElement ============= */
+
+bool testPQRemoveElementStandardTestAndAlsoOnlyRemovesFirstOfMultipleSameElements() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int elem = 5;
+    int elem2 = 4;
+    pqInsert(pq, &elem, &elem);
+    pqInsert(pq, &elem2, &elem2);
+    pqInsert(pq, &elem, &elem);
+    pqInsert(pq, &elem2, &elem2);
+
+    pqRemoveElement(pq, &elem2);
+    ASSERT_TEST(pqGetSize(pq) == 3, destroy);
+    ASSERT_TEST((*(int *) pqGetFirst(pq)) == elem, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem2, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQRemoveElementDoesNotExistAfterRemove() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+
+    int elem = 5;
+    ASSERT_TEST(pqRemoveElement(pq, &elem) == PQ_ELEMENT_DOES_NOT_EXISTS, destroy);
+
+    pqInsert(pq, &elem, &elem);
+    ASSERT_TEST(pqRemoveElement(pq, &elem) == PQ_SUCCESS, destroy);
+    ASSERT_TEST(pqRemoveElement(pq, &elem) == PQ_ELEMENT_DOES_NOT_EXISTS, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+/* ============= TESTING pqGetFirst ============= */
+
+bool testPQGetFirstEmptyQueueReturnNull() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    ASSERT_TEST(pqGetFirst(pq) == NULL, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQSGetFirstStandardTest() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int elem1 = 5;
+    int elem2 = 7;
+    pqInsert(pq, &elem1, &elem1);
+    pqInsert(pq, &elem2, &elem2);
+    ASSERT_TEST((*(int *) pqGetFirst(pq)) == elem2, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+/* ============= TESTING pqGetNext ============= */
+bool testPQGetNextStandardTest() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+
+    pqGetFirst(pq);
+    for (int i = 0; i < 9; i++) {
+        ASSERT_TEST(pqGetNext(pq) != NULL, destroy);
+    }
+
+    ASSERT_TEST(pqGetNext(pq) == NULL, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQGetNextTraversesTheQueueCorrectlyByPriority() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int elem1 = 1;
+    int elem2 = elem1 + 1;
+    int elem3 = elem2 + 1;
+    int elem4 = elem3 + 1;
+    int elem5 = elem4 + 1;
+    int elem6 = elem5 + 1;
+    pqInsert(pq, &elem6, &elem6);
+    pqInsert(pq, &elem4, &elem4);
+    pqInsert(pq, &elem3, &elem3);
+    pqInsert(pq, &elem1, &elem1);
+    pqInsert(pq, &elem2, &elem2);
+    pqInsert(pq, &elem6, &elem6);
+    pqInsert(pq, &elem2, &elem2);
+    pqInsert(pq, &elem5, &elem5);
+
+    ASSERT_TEST((*(int *) pqGetFirst(pq)) == elem6, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem6, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem5, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem4, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem3, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem2, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem2, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == elem1, destroy);
+    ASSERT_TEST(pqGetNext(pq) == NULL, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQGetNextIteratorStaysTheSameInMostFunction() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    int elem1 = 1;
+    int elem2 = 2;
+    int elem3 = 3;
+    pqInsert(pq, &elem1, &elem1);
+    pqInsert(pq, &elem2, &elem2);
+    pqInsert(pq, &elem3, &elem3);
+
+    ASSERT_TEST((*(int *) pqGetFirst(pq)) == 3, destroy);
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == 2, destroy);
+
+    PQ pq_temp = createPQ();
+    pqDestroy(pq_temp);
+    pqContains(pq, &elem1);
+    pqGetSize(pq);
+
+    ASSERT_TEST((*(int *) pqGetNext(pq)) == 1, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+bool testPQIteratorPointsToNullAfterSomeOfTheFunctions() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+
+    int elem1 = 1;
+    pqInsert(pq, &elem1, &elem1);
+
+    pqGetFirst(pq);
+    ASSERT_TEST(pqGetNext(pq) != NULL, destroy);
+
+    ASSERT_TEST(pqGetFirst(pq) != NULL, destroy);
+    pqInsert(pq, &elem1, &elem1);
+    ASSERT_TEST(pqGetNext(pq) == NULL, destroy);
+
+    ASSERT_TEST(pqGetFirst(pq) != NULL, destroy);
+    pqRemove(pq);
+    ASSERT_TEST(pqGetNext(pq) == NULL, destroy);
+
+    ASSERT_TEST(pqGetFirst(pq) != NULL, destroy);
+    pqRemoveElement(pq, &elem1);
+    ASSERT_TEST(pqGetNext(pq) == NULL, destroy);
+
+    ASSERT_TEST(pqGetFirst(pq) != NULL, destroy);
+    PQ new_pq = pqCopy(pq);
+    ASSERT_TEST(pqGetNext(pq) == NULL, destroyNewPq);
+    ASSERT_TEST(pqGetNext(new_pq) == NULL, destroyNewPq);
+
+    ASSERT_TEST(pqGetFirst(pq) != NULL, destroy);
+    int new_prio = 5;
+    pqChangePriority(pq, &elem1, &elem1, &new_prio);
+    ASSERT_TEST(pqGetNext(pq) == NULL, destroy);
+
+    destroyNewPq:
+    pqDestroy(new_pq);
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+/* ============= TESTING pqClear ============= */
+bool testPQClearWorksOkayOnEmptyQueue() {
+    bool result = true;
+    PQ pq = createPQ();
+
+    ASSERT_TEST(pqClear(pq) == PQ_SUCCESS, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQClearStandardTest() {
+    bool result = true;
+    PQ pq = getMultipleElementPQ();
+
+    ASSERT_TEST(pqClear(pq) == PQ_SUCCESS, destroy);
+    ASSERT_TEST(pqGetSize(pq) == 0, destroy);
+
+    ASSERT_TEST(pqGetFirst(pq) == NULL, destroy);
+    ASSERT_TEST(pqGetNext(pq) == NULL, destroy);
+
+    destroy:
+    pqDestroy(pq);
+    return result;
+}
+
+
+
+/* ============= Course given tests ============= */
+bool testPQCreateDestroy() {
+    bool result = true;
+
+    PriorityQueue pq = createPQ();
+    ASSERT_TEST(pq != NULL, returnPQCreateDestroy);
+    ASSERT_TEST(pqGetSize(pq) == 0, destroyPQCreateDestroy);
+    ASSERT_TEST(pqGetFirst(pq) == NULL, destroyPQCreateDestroy);
+
+    destroyPQCreateDestroy:
+    pqDestroy(pq);
+    returnPQCreateDestroy:
+    return result;
+}
+
+bool testPQInsertAndSize() {
+    bool result = true;
+    PriorityQueue pq = pqCreate(copyIntGeneric, freeIntGeneric, equalIntsGeneric, copyIntGeneric, freeIntGeneric,
+                                compareIntsGeneric);
+    ASSERT_TEST(pqGetSize(pq) == 0, destroyPQInsertAndSize);
+    int to_add = 1;
+    ASSERT_TEST(pqInsert(pq, &to_add, &to_add) == PQ_SUCCESS, destroyPQInsertAndSize);
+    ASSERT_TEST(pqGetSize(pq) == 1, destroyPQInsertAndSize);
+
+    destroyPQInsertAndSize:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQGetFirst() {
+    bool result = true;
+    PriorityQueue pq = pqCreate(copyIntGeneric, freeIntGeneric, equalIntsGeneric, copyIntGeneric, freeIntGeneric,
+                                compareIntsGeneric);
+    ASSERT_TEST(pqGetSize(pq) == 0, destroyPQGetFirst);
+    int to_add = 1;
+    ASSERT_TEST(pqInsert(pq, &to_add, &to_add) == PQ_SUCCESS, destroyPQGetFirst);
+    int *first_value = pqGetFirst(pq);
+    ASSERT_TEST(first_value != NULL, destroyPQGetFirst);
+    ASSERT_TEST(*first_value == to_add, destroyPQGetFirst);
+
+    destroyPQGetFirst:
+    pqDestroy(pq);
+    return result;
+}
+
+bool testPQIterator() {
+    bool result = true;
+    PriorityQueue pq = pqCreate(copyIntGeneric, freeIntGeneric, equalIntsGeneric, copyIntGeneric, freeIntGeneric,
+                                compareIntsGeneric);
+
+    int max_value = 10;
+
+    for (int i = 0; i < max_value; i++) {
+        ASSERT_TEST(pqInsert(pq, &i, &i) == PQ_SUCCESS, destroyPQIterator);
+    }
+
+    int i = 0;
+    PQ_FOREACH(int*, iter, pq) {
+        if (i != max_value) {
+            ASSERT_TEST(iter != NULL, destroyPQIterator);
         } else {
-            return true;
+            ASSERT_TEST(iter == NULL, destroyPQIterator);
         }
+        i++;
     }
-    return false;
 
+    destroyPQIterator:
+    pqDestroy(pq);
+    return result;
 }
 
-/**
- * setIteratorToNULL: sets the queue's iterator to NULL
- * @param queue
- */
-static void setIteratorToNULL(PriorityQueue queue) {
-    if (queue == NULL) {
-        return;
-    }
-    queue->iterator = (int) NULL;
-}
 
-/**
- * pqRemoveElementAndPriority: Removes a certain element with a certain priority (can be set to NULL as to be ignored)
- * @param queue
- * @param element
- * @param priority
- * @return
- */
-static PriorityQueueResult pqRemoveElementAndPriority(PriorityQueue queue, PQElement element,
-                                                      PQElementPriority priority) {
-    if (queue == NULL || element == NULL) {
-        return PQ_NULL_ARGUMENT;
-    }
-    if (queue->equalElements(element, pqNodeGetElement(queue->first))) {
-        if (priority == NULL || queue->comparePriorities(priority, pqNodeGetPriority(queue->first)) == 0) {
-            return pqRemove(queue);
+bool (*tests[])(void) = {
+        testPQCreateStandardTest,
+        testPQCreateDestroy,
+        testPQInsertAndSize,
+        testPQGetFirst,
+        testPQIterator,
+        testPQIteratorPointsToNullAfterSomeOfTheFunctions,
+        testPQGetNextIteratorStaysTheSameInMostFunction,
+        testMemoryPQDestroyEmptyPQ,
+        testMemoryPQDestroySingleElement,
+        testMemoryPQDestroyMultipleElement,
+        testPQCopySampleNULLArgument,
+        testPQCopySingleElement,
+        testPQCopyMultipleElement,
+        testPQCopyMultipleSameElementDifferentPriority,
+        testPQCopyMultipleSameElementSamePriority,
+        testPQGetSizeSampleNullArgument,
+        testPQGetSizeStandardTest,
+        testPQContainsSampleNullArgument,
+        testPQContainsStandardTest,
+        testPQContainsFalseAfterRemove,
+        testPQContainsSameElementMultipleTimesAlsoWithDifferentPriority,
+        testPQInsertSampleNULLArgument,
+        testPQInsertStandardTest,
+        testPQInsertPutsNewElementsInCorrectPlace,
+        testPQChangePriorityAlsoChangesPositionInQueue,
+        testPQChangePriorityNonExistentElement,
+        testPQChangePrioritySampleNullArgument,
+        testPQChangePriorityWOnlyChangesFirstOfMultipleSameElementsAndReinsertsIt,
+        testPQRemoveSampleNullArgument,
+        testPQRemoveStandardTest,
+        testPQRemoveElementDoesNotExistAfterRemove,
+        testPQRemoveElementStandardTestAndAlsoOnlyRemovesFirstOfMultipleSameElements,
+        testPQGetFirstEmptyQueueReturnNull,
+        testPQSGetFirstStandardTest,
+        testPQGetNextStandardTest,
+        testPQGetNextTraversesTheQueueCorrectlyByPriority,
+        testPQClearStandardTest,
+        testPQClearWorksOkayOnEmptyQueue
+};
+
+const char *testNames[] = {
+        "testPQCreateStandardTest",
+        "testPQCreateDestroy",
+        "testPQInsertAndSize",
+        "testPQGetFirst",
+        "testPQIterator",
+        "testPQIteratorPointsToNullAfterSomeOfTheFunctions",
+        "testPQGetNextIteratorStaysTheSameInMostFunction",
+        "testMemoryPQDestroyEmptyPQ",
+        "testMemoryPQDestroySingleElement",
+        "testMemoryPQDestroyMultipleElement",
+        "testPQCopySampleNULLArgument",
+        "testPQCopySingleElement",
+        "testPQCopyMultipleElement",
+        "testPQCopyMultipleSameElementDifferentPriority",
+        "testPQCopyMultipleSameElementSamePriority",
+        "testPQGetSizeSampleNullArgument",
+        "testPQGetSizeStandardTest",
+        "testPQContainsSampleNullArgument",
+        "testPQContainsStandardTest",
+        "testPQContainsFalseAfterRemove",
+        "testPQContainsSameElementMultipleTimesAlsoWithDifferentPriority",
+        "testPQInsertSampleNULLArgument",
+        "testPQInsertStandardTest",
+        "testPQInsertPutsNewElementsInCorrectPlace",
+        "testPQChangePriorityAlsoChangesPositionInQueue",
+        "testPQChangePriorityNonExistentElement",
+        "testPQChangePrioritySampleNullArgument",
+        "testPQChangePriorityWOnlyChangesFirstOfMultipleSameElementsAndReinsertsIt",
+        "testPQRemoveSampleNullArgument",
+        "testPQRemoveStandardTest",
+        "testPQRemoveElementDoesNotExistAfterRemove",
+        "testPQRemoveElementStandardTestAndAlsoOnlyRemovesFirstOfMultipleSameElements",
+        "testPQGetFirstEmptyQueueReturnNull",
+        "testPQSGetFirstStandardTest",
+        "testPQGetNextStandardTest",
+        "testPQGetNextTraversesTheQueueCorrectlyByPriority",
+        "testPQClearStandardTest",
+        "testPQClearWorksOkayOnEmptyQueue"
+};
+
+const char *testFailDescriptions[] = {
+        "Please refer to the code at function: testPQCreateStandardTest",
+        "Please refer to the code at function: testPQCreateDestroy",
+        "Please refer to the testing code at function: testPQInsertAndSize",
+        "Please refer to the testing code at function: testPQGetFirst",
+        "Please refer to the testing code at function: testPQIterator",
+        "According to the course segel after the following functions the iterator should be null: pqInsert, "
+        "pqCopy (both pqs), pqChangePriority, pqRemove, pqRemoveElement. "
+        "If the test failed, your iterator isn't NULL after one of these functions",
+        "Please refer to the testing code at function: testPQGetNextIteratorStaysTheSameInMostFunction",
+        "Please refer to the testing code at function: testMemoryPQDestroyEmptyPQ",
+        "Please refer to the testing code at function: testMemoryPQDestroySingleElement",
+        "Please refer to the testing code at function: testMemoryPQDestroyMultipleElement",
+        "Please refer to the testing code at function: testPQCopySampleNULLArgument",
+        "Please refer to the testing code at function: testPQCopySingleElement",
+        "Please refer to the testing code at function: testPQCopyMultipleElement",
+        "Please refer to the testing code at function: testPQCopyMultipleSameElementDifferentPriority",
+        "Please refer to the testing code at function: testPQCopyMultipleSameElementSamePriority",
+        "Please refer to the testing code at function: testPQGetSizeSampleNullArgument",
+        "Please refer to the testing code at function: testPQGetSizeStandardTest",
+        "Please refer to the testing code at function: testPQContainsSampleNullArgument",
+        "Please refer to the testing code at function: testPQContainsStandardTest",
+        "Please refer to the testing code at function: testPQContainsFalseAfterRemove",
+        "Please refer to the testing code at function: PQContainsSameElementMultipleTimesAlsoWithDifferentPriority",
+        "Please refer to the testing code at function: testPQInsertSampleNULLArgument",
+        "Please refer to the testing code at function: testPQInsertStandardTest",
+        "Please refer to the testing code at function: testPQInsertPutsNewElementsInCorrectPlace",
+        "Please refer to the testing code at function: testPQChangePriorityAlsoChangesPositionInQueue",
+        "Please refer to the testing code at function: testPQChangePriorityNonExistentElement",
+        "Please refer to the testing code at function: testPQChangePrioritySampleNullArgument",
+        "Please refer to the testing code at function: "
+        "testPQChangePriorityWOnlyChangesFirstOfMultipleSameElementsAndReinsertsIt",
+        "Please refer to the testing code at function: testPQRemoveSampleNullArgument",
+        "Please refer to the testing code at function: testPQRemoveStandardTest",
+        "Please refer to the testing code at function: testPQRemoveElementDoesNotExistAfterRemove",
+        "Please refer to the testing code at function: "
+        "testPQRemoveElementStandardTestAndAlsoOnlyRemovesFirstOfMultipleSameElements",
+        "Please refer to the testing code at function: testPQGetFirstEmptyQueueReturnNull",
+        "Please refer to the testing code at function: testPQSGetFirstStandardTest",
+        "Please refer to the testing code at function: testPQGetNextStandardTest",
+        "Please refer to the testing code at function: testPQGetNextTraversesTheQueueCorrectlyByPriority",
+        "Please refer to the testing code at function: testPQClearStandardTest",
+        "Please refer to the testing code at function: testPQClearWorksOkayOnEmptyQueue"
+};
+
+
+#define NUMBER_TESTS 38
+
+int main(int argc, char **argv) {
+    if (argc == 1) {
+        for (int test_idx = 0; test_idx < NUMBER_TESTS; test_idx++) {
+            RUN_TEST(tests[test_idx], testNames[test_idx], testFailDescriptions[test_idx]);
         }
+        return 0;
     }
-    PriorityQueue temp = (PriorityQueue) queue;
-    temp->first = pqNodeGetNext(queue->first);
-    return pqRemoveElementAndPriority(temp, element, priority);
-}
-
-
-/*
- * PROVIDED FUNCTIONS FOR PriorityQueue
- */
-
-PriorityQueue pqCreate(CopyPQElement copy_element,
-                       FreePQElement free_element,
-                       EqualPQElements equal_elements,
-                       CopyPQElementPriority copy_priority,
-                       FreePQElementPriority free_priority,
-                       ComparePQElementPriorities compare_priorities) {
-    if (copy_element == NULL || free_element == NULL || equal_elements == NULL ||
-        copy_priority == NULL || free_priority == NULL || compare_priorities == NULL) {
-        return NULL;
-    }
-    PriorityQueue queue = malloc(sizeof(*queue));
-    if (queue == NULL) {
-        return NULL;
-    }
-    queue->copyElement = copy_element;
-    queue->freeElement = free_element;
-    queue->equalElements = equal_elements;
-    queue->copyPriority = copy_priority;
-    queue->freePriority = free_priority;
-    queue->comparePriorities = compare_priorities;
-
-    queue->iterator = 0;
-    queue->size = 0;
-    queue->first = NULL;
-    return queue;
-}
-
-void pqDestroy(PriorityQueue queue) {
-    if (queue == NULL) {
-        return;
-    }
-    while (pqGetSize(queue) != 0) {
-        queue->size = queue->size - 1;
-        pqRemove(queue);
-        pqDestroy(queue);
-    }
-}
-
-PriorityQueue pqCopy(PriorityQueue queue) {
-    if (queue == NULL) {
-        return NULL;
-    }
-    PriorityQueue new_queue = pqCreate(queue->copyElement,
-                                       queue->freeElement,
-                                       queue->equalElements,
-                                       queue->copyPriority,
-                                       queue->freePriority,
-                                       queue->comparePriorities);
-    if (new_queue == NULL) {
-        return NULL;
-    }
-    int size = queue->size;
-    new_queue->size = size;
-    if (size > 0) {
-        pqNode copy = pqNodeCopyFull(queue->first, queue);
-        new_queue->first = copy;
-    }
-    setIteratorToNULL(new_queue);
-    setIteratorToNULL(queue);
-    return new_queue;
-}
-
-int pqGetSize(PriorityQueue queue) {
-    if (queue == NULL) {
-        return ELEMENT_NOT_FOUND;
-    }
-    return (queue->size);
-}
-
-bool pqContains(PriorityQueue queue, PQElement element) {
-    if (queue == NULL || element == NULL) {
-        return NULL;
-    }
-    return pqContainsWithPriority(queue, element, NULL);
-}
-
-PriorityQueueResult pqInsert(PriorityQueue queue, PQElement element, PQElementPriority priority) {
-    if (queue == NULL || element == NULL || priority == NULL) {
-        return PQ_NULL_ARGUMENT;
-    }
-    pqNode new_node = pqNodeCreate(queue->copyElement(element), queue->copyPriority(priority), NULL, queue);
-    setIteratorToNULL(queue);
-    if (new_node == NULL || new_node->element == NULL || new_node->priority == NULL) {
-        return PQ_OUT_OF_MEMORY;
-    }
-    if (queue->first == NULL) {
-        queue->first = new_node;
-        queue->size = queue->size + 1;
-        return PQ_SUCCESS;
-    }
-    if (queue->comparePriorities(new_node->priority, queue->first->priority) >= 0) {
-        new_node->next = (pqNode *) queue->first;
-        queue->first = new_node;
-        queue->size = queue->size + 1;
-        return PQ_SUCCESS;
-    }
-    if (pqNodeGetNext(queue->first) == NULL) {
-        pqNode temp = pqNodeCopy(queue->first, queue);
-        if (temp == NULL || temp->element == NULL || temp->priority == NULL) {
-            return PQ_OUT_OF_MEMORY;
-        }
-        temp->next = (pqNode *) new_node;
-        queue->first = temp;
-        return PQ_SUCCESS;
-    }
-    pqNode temp = (pqNode) pqNodeGetNext(queue->first);
-    if (temp == NULL || temp->element == NULL || temp->priority == NULL) {
-        return PQ_OUT_OF_MEMORY;
-    }
-    while (temp->next != NULL) {
-        if (queue->comparePriorities(new_node->priority, temp->priority) >= 0) {
-            pqNode tempNext = (pqNode) temp->next;
-            temp->next = (pqNode *) new_node;
-            new_node->next = (pqNode *) tempNext;
-            queue->size = queue->size + 1;
-            return PQ_SUCCESS;
-        }
-        temp = (pqNode) temp->next;
+    if (argc != 2) {
+        fprintf(stdout, "Usage: priority_queue_tests <test index>\n");
+        return 0;
     }
 
-    return PQ_ERROR;
-}
+    int test_idx = strtol(argv[1], NULL, 10);
+    if (test_idx < 1 || test_idx > NUMBER_TESTS) {
+        fprintf(stderr, "Invalid test index %d\n", test_idx);
+        return 0;
+    }
 
-PriorityQueueResult pqChangePriority(PriorityQueue queue, PQElement element, PQElementPriority old_priority,
-                                     PQElementPriority new_priority) {
-    if (queue == NULL || element == NULL || old_priority == NULL || new_priority == NULL) {
-        return PQ_NULL_ARGUMENT;
-    }
-    if (pqContainsWithPriority(queue, element, old_priority) == false) {
-        return PQ_ELEMENT_DOES_NOT_EXISTS;
-    }
-    if (pqRemoveElementAndPriority(queue, element, old_priority) == PQ_SUCCESS) {
-        return pqInsert(queue, element, new_priority);
-    }
-    return PQ_ERROR;
-}
+    RUN_TEST(tests[test_idx - 1], testNames[test_idx - 1], testFailDescriptions[test_idx - 1]);
+    return 0;
 
-PriorityQueueResult pqRemove(PriorityQueue queue) {
-    if (queue == NULL || isPQEmpty(queue)) {
-        return PQ_NULL_ARGUMENT;
-    }
-    queue->freeElement(pqNodeGetElement(queue->first));
-    queue->freePriority(pqNodeGetPriority(queue->first));
-    queue->first = pqNodeGetNext(queue->first);
-    queue->size = queue->size - 1;
-    setIteratorToNULL(queue);
-    return PQ_SUCCESS;
-}
-
-PriorityQueueResult pqRemoveElement(PriorityQueue queue, PQElement element) {
-    if (queue == NULL || element == NULL) {
-        return PQ_NULL_ARGUMENT;
-    }
-    setIteratorToNULL(queue);
-    return pqRemoveElementAndPriority(queue, element, NULL);
-}
-
-PQElement pqGetFirst(PriorityQueue queue) {
-    if (queue == NULL) {
-        return NULL;
-    }
-    if (queue->first == NULL) {
-        return NULL;
-    }
-    queue->iterator = 1;
-    return pqNodeGetElement(queue->first);
-}
-
-PQElement pqGetNext(PriorityQueue queue) {
-    if (queue == NULL) {
-        return NULL;
-    }
-    if (queue->first->next == NULL) {
-        return NULL;
-    }
-    queue->iterator = queue->iterator + 1;
-    return pqNodeGetElement((pqNodeIterate(queue->first, queue->iterator)));
-}
-
-PriorityQueueResult pqClear(PriorityQueue queue) {
-    if (queue == NULL) {
-        return PQ_NULL_ARGUMENT;
-    }
-    int size = queue->size;
-    while (size != 0) {
-        queue->freeElement(queue->first);
-        queue->freePriority(queue->first);
-        queue->first = pqNodeGetNext(queue->first);
-        size = size - 1;
-    }
-    return PQ_SUCCESS;
 }
