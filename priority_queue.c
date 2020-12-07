@@ -466,8 +466,11 @@ PriorityQueueResult pqChangePriority(PriorityQueue queue, PQElement element, PQE
 }
 
 PriorityQueueResult pqRemove(PriorityQueue queue) {
-    if (queue == NULL || isPQEmpty(queue)) {
+    if (queue == NULL) {
         return PQ_NULL_ARGUMENT;
+    }
+    if (isPQEmpty(queue) == true){
+        return PQ_SUCCESS;
     }
     queue->freeElement(pqNodeGetElement(queue->first));
     queue->freePriority(pqNodeGetPriority(queue->first));
