@@ -87,13 +87,13 @@ static pqNode pqNodeCreate(PQElement element, PQElementPriority priority, pqNode
 }
 
 static void pqNodeFree(pqNode node, PriorityQueue queue) {
-    if (node == NULL) {
+    if (node == NULL || queue == NULL) {
         return;
     }
-    if (node->element != NULL){
+    if (node->element != NULL) {
         queue->freeElement(node->element);
     }
-    if (node->priority != NULL){
+    if (node->priority != NULL) {
         queue->freePriority(node->priority);
     }
     free(node);
@@ -191,6 +191,14 @@ inline static PriorityQueueResult pqUpdateSizeAfterInsertAndReturnSuccess(Priori
     return PQ_SUCCESS;
 }
 
+inline static PriorityQueueResult pqUpdateSizeAfterRemoveAndReturnSuccess(PriorityQueue queue){
+    if(queue == NULL){
+        return PQ_OUT_OF_MEMORY;
+    }
+    queue->size = queue->size - 1;
+    return PQ_SUCCESS;
+}
+
 /**
  * isPQEmpty: whether the queue is empty
  * @param queue - the queue the function checks
@@ -268,21 +276,6 @@ inline static void setIteratorToNULL(PriorityQueue queue) {
 }
 
 /**
- * getLastNode: Returns the last node, the one where 'next' is set to NULL
- * @param node
- * @return
- */
-static pqNode getLastNode(pqNode node) {
-    if (node == NULL) {
-        return NULL;
-    }
-    if (node->next != NULL) {
-        return getLastNode(node->next);
-    }
-    return node;
-}
-
-/**
  * pqRemoveElementAndPriority: Removes a certain element with a certain priority (can be set to NULL as to be ignored)
  * @param queue
  * @param element
@@ -290,29 +283,28 @@ static pqNode getLastNode(pqNode node) {
  * @return
  */
 static PriorityQueueResult pqRemoveElementAndPriority(PriorityQueue queue, PQElement element,
-                                                      PQElementPriority priority, pqNode removed_so_far) {
+                                                      PQElementPriority priority) {
     if (queue == NULL || element == NULL) {
         return PQ_NULL_ARGUMENT;
     }
-    if (queue->equalElements(element, pqNodeGetElement(queue->first))) {
-        if (priority == NULL || queue->comparePriorities(priority, pqNodeGetPriority(queue->first)) == 0) {
-            if (pqRemove(queue) == PQ_SUCCESS) {
-                pqNode all_removed = removed_so_far;
-                removed_so_far = getLastNode(removed_so_far);
-                removed_so_far->next = queue->first;
-                queue->first = all_removed->next;
-                return PQ_SUCCESS;
+    pqNode before = queue->first;
+    while (before->next != NULL) {
+        if (queue->equalElements(element, pqNodeGetElement(before->next))) {
+            if (priority == NULL || queue->comparePriorities(priority, pqNodeGetPriority(before->next)) == 0) {
+                pqNode temp = before->next;
+                before->next = temp->next;
+                pqNodeFree(temp, queue);
+                return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
             }
-            return PQ_ERROR;
         }
+        before = before->next;
     }
-    PriorityQueue temp = (PriorityQueue) queue;
-    pqNode first_removed = removed_so_far;
-    removed_so_far = getLastNode(removed_so_far);
-    removed_so_far->next = pqNodeCopy(temp->first, queue);
-    removed_so_far->next->next = NULL;
-    temp->first = pqNodeGetNext(queue->first);
-    return pqRemoveElementAndPriority(temp, element, priority, first_removed);
+    if (queue->size == 1) {
+        pqNodeFree(before, queue);
+        queue->first = NULL;
+        return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
+    }
+    return PQ_ERROR;
 }
 
 
@@ -354,6 +346,7 @@ void pqDestroy(PriorityQueue queue) {
     while (pqGetSize(queue) != 0) {
         pqRemove(queue);
     }
+    free(queue);
 }
 
 PriorityQueue pqCopy(PriorityQueue queue) {
@@ -464,8 +457,7 @@ PriorityQueueResult pqChangePriority(PriorityQueue queue, PQElement element, PQE
     if (pqContainsWithPriority(queue, element, old_priority) == false) {
         return PQ_ELEMENT_DOES_NOT_EXISTS;
     }
-    pqNode removed_so_far = pqNodeCreate(NULL, NULL, NULL);
-    if (pqRemoveElementAndPriority(queue, element, old_priority, removed_so_far) == PQ_SUCCESS) {
+    if (pqRemoveElementAndPriority(queue, element, old_priority) == PQ_SUCCESS) {
         return pqInsert(queue, element, new_priority);
     }
     return PQ_ERROR;
@@ -481,9 +473,8 @@ PriorityQueueResult pqRemove(PriorityQueue queue) {
     pqNode temp = pqNodeGetNext(queue->first);
     pqNodeFree(queue->first, queue);
     queue->first = temp;
-    queue->size = queue->size - 1;
     setIteratorToNULL(queue);
-    return PQ_SUCCESS;
+    return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
 }
 
 PriorityQueueResult pqRemoveElement(PriorityQueue queue, PQElement element) {
@@ -492,8 +483,8 @@ PriorityQueueResult pqRemoveElement(PriorityQueue queue, PQElement element) {
     }
     setIteratorToNULL(queue);
     if (pqContains(queue, element) == true) {
-        pqNode removed_so_far = pqNodeCreate(NULL, NULL, NULL);
-        return pqRemoveElementAndPriority(queue, element, NULL, removed_so_far);
+        PriorityQueueResult result = pqRemoveElementAndPriority(queue, element, NULL);
+        return result;
     }
     return PQ_ELEMENT_DOES_NOT_EXISTS;
 }
@@ -529,10 +520,8 @@ PriorityQueueResult pqClear(PriorityQueue queue) {
     if (queue == NULL) {
         return PQ_NULL_ARGUMENT;
     }
-    int size = queue->size;
-    while (size != 0) {
+    while (pqGetSize(queue) != 0) {
         pqRemove(queue);
-        size = size - 1;
     }
     return PQ_SUCCESS;
 }
