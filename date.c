@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
-#include "date.h"
+#include <math.h>
+#include <stdio.h>
 #include <string.h>
 #define MIN_DAY 1
 #define DAYS_IN_MONTH 30
@@ -34,7 +35,7 @@ Date dateCreate(int day, int month, int year)
     {
         return NULL;
     }
-    Date d;
+    Date d= malloc(sizeof(*d));
     d->day=day;
     d->month=month;
     d->year=year;
@@ -61,11 +62,26 @@ void dateDestroy(Date date)
 */
 Date dateCopy(Date date)
 {
-    Date d;
+    if(date)
+    {
+    Date d= malloc(sizeof(*d));
     d->day=date->day;
     d->month=date->month;
     d->year=date->year;
-    return d;
+        if(d)
+        {
+            return d;
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+    else
+    {
+        return NULL;
+    }
+    
 }
 
 /**
@@ -82,15 +98,17 @@ Date dateCopy(Date date)
 */
 bool dateGet(Date date, int* day, int* month, int* year)
 {
-    if(!date->day&&!date->month&&!date->year)
+    if(day&&month&&year)
     {
-        *day=date->day;
-        *month=date->month;
-        *year=date->year;
+        *(day)= date->day;
+        *(month)=date->month;
+        *(year)=date->year;
         return true;
     }
     return false;
 }
+
+
 
 /**
 * dateCompare: compares to dates and return which comes first
@@ -103,12 +121,20 @@ bool dateGet(Date date, int* day, int* month, int* year)
 
 int timediff(Date date1, Date date2)
 {
-    return (date2->year-date1->year)*DAYS_IN_YEAR+(date2->month-date1->month)*DAYS_IN_MONTH+(date2->day-date1->day);
+    return (date1->year-date2->year)*DAYS_IN_YEAR+(date1->month-date2->month)*DAYS_IN_MONTH+(date1->day-date2->day);
 }
 
 int dateCompare(Date date1, Date date2)
 {
-    return timediff(date1, date2);
+    if ((date1!=NULL) & (date2 != NULL))
+    {
+        return timediff(date1, date2);
+    }
+    else
+    {
+        return 0;
+    }
+    
 }
 
 /**
@@ -139,21 +165,5 @@ void dateTick(Date date)
     
 }
 
-char* dateToStr(Date date)
-{
-    char buffer[10];
-    sprintf(buffer, "%d%d%d", toArray(date->day), toArray(date->month), toArray(date->year));
-    return buffer;
-}
 
-char * toArray(int number)
-    {
-        int n = log10(number) + 1;
-        int i;
-      char *numberArray = calloc(n, sizeof(char));
-        for ( i = n-1; i >= 0; --i, number /= 10 )
-        {
-            numberArray[i] = (number % 10)+'0';
-        }
-        return numberArray;
-    }
+
