@@ -1,12 +1,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "date.h"
-
+#include <string.h>
 #define MIN_DAY 1
 #define DAYS_IN_MONTH 30
 #define MIN_MONTH 1
 #define MONTHS_IN_YEAR 12
-#define DAYS_IN_YEAR 365
+#define DAYS_IN_YEAR 360
 
 /** Type for defining the date */
 
@@ -62,7 +62,9 @@ void dateDestroy(Date date)
 Date dateCopy(Date date)
 {
     Date d;
-    memcpy(d,date);
+    d->day=date->day;
+    d->month=date->month;
+    d->year=date->year;
     return d;
 }
 
@@ -82,9 +84,9 @@ bool dateGet(Date date, int* day, int* month, int* year)
 {
     if(!date->day&&!date->month&&!date->year)
     {
-        day=date->day;
-        month=date->month;
-        year=date->year;
+        *day=date->day;
+        *month=date->month;
+        *year=date->year;
         return true;
     }
     return false;
@@ -136,3 +138,22 @@ void dateTick(Date date)
     }
     
 }
+
+char* dateToStr(Date date)
+{
+    char buffer[10];
+    sprintf(buffer, "%d%d%d", toArray(date->day), toArray(date->month), toArray(date->year));
+    return buffer;
+}
+
+char * toArray(int number)
+    {
+        int n = log10(number) + 1;
+        int i;
+      char *numberArray = calloc(n, sizeof(char));
+        for ( i = n-1; i >= 0; --i, number /= 10 )
+        {
+            numberArray[i] = (number % 10)+'0';
+        }
+        return numberArray;
+    }
