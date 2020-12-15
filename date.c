@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
-#include <math.h>
 #include <stdio.h>
-#include <string.h>
 #define MIN_DAY 1
 #define DAYS_IN_MONTH 30
 #define MIN_MONTH 1
@@ -121,7 +119,7 @@ bool dateGet(Date date, int* day, int* month, int* year)
 
 int timediff(Date date1, Date date2)
 {
-    return (date1->year-date2->year)*DAYS_IN_YEAR+(date1->month-date2->month)*DAYS_IN_MONTH+(date1->day-date2->day);
+    return ((date1->year)-(date2->year))*DAYS_IN_YEAR+((date1->month)-(date2->month))*DAYS_IN_MONTH+((date1->day)-(date2->day));
 }
 
 int dateCompare(Date date1, Date date2)
@@ -164,6 +162,8 @@ void dateTick(Date date)
     }
     
 }
+
+
 
 
 
