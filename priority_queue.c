@@ -147,7 +147,6 @@ static PriorityQueueResult pqRemoveElementAndPriority(PriorityQueue queue, PQEle
                 pqNode temp = before->next;
                 before->next = temp->next;
                 pqNodeFree(temp);
-                //pqNodeFree(temp, queue);
                 return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
             }
         }
@@ -155,7 +154,6 @@ static PriorityQueueResult pqRemoveElementAndPriority(PriorityQueue queue, PQEle
     }
     if (queue->size == 1) {
         pqNodeFree(before);
-        //pqNodeFree(before, queue);
         queue->first = NULL;
         return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
     }
@@ -221,7 +219,6 @@ PriorityQueue pqCopy(PriorityQueue queue) {
     new_queue->size = size;
     if (size > 0) {
         pqNode copy = pqNodeCopyFull(queue->first);
-        //pqNode copy = pqNodeCopyFull(queue->first, queue);
         new_queue->first = copy;
         size = size - 1;
     }
@@ -248,7 +245,6 @@ PriorityQueueResult pqInsert(PriorityQueue queue, PQElement element, PQElementPr
     if (queue == NULL || element == NULL || priority == NULL) {
         return PQ_NULL_ARGUMENT;
     }
-    //pqNode new_node = pqNodeCreate(queue->copyElement(element), queue->copyPriority(priority), NULL);
     pqNode new_node = pqNodeCreate(queue->copyElement(element), queue->copyPriority(priority), NULL,
                                    queue->copyElement, queue->freeElement, queue->copyPriority, queue->freePriority);
     setIteratorToNULL(queue);
@@ -330,7 +326,6 @@ PriorityQueueResult pqRemove(PriorityQueue queue) {
     }
     pqNode temp = pqNodeGetNext(queue->first);
     pqNodeFree(queue->first);
-    //pqNodeFree(queue->first, queue);
     queue->first = temp;
     setIteratorToNULL(queue);
     return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
