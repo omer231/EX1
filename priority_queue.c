@@ -2,30 +2,20 @@
  * I want to create a list-based queue, with each node having some data and a priority
  * The order of the queue will be through the nodes, each new addition will be sorted and placed from highest
  * priority to lowest priority
- * I will remember the first and last nodes in the queue in order to compare priorities
 **/
 
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include "priority_queue.h"
+#include "pqNode.h"
 
 #define ELEMENT_NOT_FOUND -1
-
-typedef struct pqNode_t *pqNode;
 
 /*
  * STRUCTS
  */
 
-/**
- * Struct representing a single node inside the queue
- */
-struct pqNode_t {
-    PQElement *element;
-    PQElementPriority *priority;
-    pqNode next;
-};
 /**
  * Struct representing the queue, with the first and last nodes linked, size in integer, iterator for users,
  * and all functions that the user supplies
@@ -42,143 +32,6 @@ struct PriorityQueue_t {
     int size;
     pqNode first;
 };
-
-/*
- * STATIC FUNCTIONS FOR pqNode
- */
-/**
- * pqNodeIterator: Goes over the number of nodes the iterator points to, recursively
- * @param node - first node, iterating down from there
- * @param iterator - the number of nodes to go down to
- * @return
- *      if the iterator reached 0, the node that it stopped on will be returned
- *      otherwise, pqNodeIterate with the next node and iterator -1
- */
-static pqNode pqNodeIterate(pqNode node, int iterator) {
-    if (node == NULL) {
-        return NULL;
-    }
-    while (iterator > 1) {
-        node = (pqNode) node->next;
-        return pqNodeIterate(node, iterator - 1);
-    }
-    return node;
-}
-
-/**
- * pqNodeCreate: Creates a new node with provided element, priority and next, each of them can be set to NULL
- * @param element
- * @param priority
- * @param next
- * @param queue - the queue we're using in order to get queue functions
- * @return
- *      NULL if memory allocation failed
- *      the new node if it didn't
- */
-static pqNode pqNodeCreate(PQElement element, PQElementPriority priority, pqNode next) {
-    pqNode node = malloc(sizeof(*node));
-    if (node == NULL) {
-        return NULL;
-    }
-    node->element = element;
-    node->priority = priority;
-    node->next = next;
-    return node;
-}
-
-static void pqNodeFree(pqNode node, PriorityQueue queue) {
-    if (node == NULL || queue == NULL) {
-        return;
-    }
-    if (node->element != NULL) {
-        queue->freeElement(node->element);
-    }
-    if (node->priority != NULL) {
-        queue->freePriority(node->priority);
-    }
-    free(node);
-}
-
-/**
- * pqNodeGetElement: Retrieve the element from current node
- * @param node - the node whose element the function returns
- * @return
- *      node->element
- */
-inline static PQElement pqNodeGetElement(pqNode node) {
-    if (node == NULL) {
-        return NULL;
-    }
-    return node->element;
-}
-
-/**
- * pqNodeGetPriority: Retrieve the priority from the current node
- * @param node - the node whose priority the function returns
- * @return
- *      node->priority
- */
-inline static PQElementPriority pqNodeGetPriority(pqNode node) {
-    if (node == NULL) {
-        return NULL;
-    }
-    return node->priority;
-}
-
-/**
- * pqNodeGetNext: Retrieve the next node from the current node
- * @param node - the node whose next node the function returns
- * @return
- *      (pqNode) node->next
- */
-inline static pqNode pqNodeGetNext(pqNode node) {
-    if (node == NULL) {
-        return NULL;
-    }
-    return node->next;
-}
-
-/**
- * pqNodeCopy: Creates a copy of a single node
- * @param node
- * @param queue - the queue we're using in order to get queue functions
- * @return
- *      NULL if the node wasn't successfully created
- *      the new node otherwise
-*/
-static pqNode pqNodeCopy(pqNode node, PriorityQueue queue) {
-    if (node == NULL || queue == NULL) {
-        return NULL;
-    }
-    pqNode new_node = pqNodeCreate(queue->copyElement(pqNodeGetElement(node)),
-                                   queue->copyPriority(pqNodeGetPriority(node)),
-                                   pqNodeGetNext(node));
-    if (new_node == NULL) {
-        return NULL;
-    }
-    return new_node;
-}
-
-/**
- * pqNodeCopyFull: Creates a copy of all linked nodes, recursively
- * @param node
- * @param queue - the queue we're using in order to get queue functions
- * @return
- *      NULL if the node(s) weren't successfully created
- *      the new copied top of the node (I hope)
- */
-static pqNode pqNodeCopyFull(pqNode node, PriorityQueue queue) {
-    if (node == NULL || queue == NULL) {
-        return NULL;
-    }
-    pqNode new_node = pqNodeCopy(node, queue);
-    if (new_node == NULL) {
-        return NULL;
-    }
-    new_node->next = pqNodeCopyFull(pqNodeGetNext(node), queue);
-    return new_node;
-}
-
 
 /*
  * STATIC FUNCTIONS FOR PriorityQueue
@@ -293,14 +146,16 @@ static PriorityQueueResult pqRemoveElementAndPriority(PriorityQueue queue, PQEle
             if (priority == NULL || queue->comparePriorities(priority, pqNodeGetPriority(before->next)) == 0) {
                 pqNode temp = before->next;
                 before->next = temp->next;
-                pqNodeFree(temp, queue);
+                pqNodeFree(temp);
+                //pqNodeFree(temp, queue);
                 return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
             }
         }
         before = before->next;
     }
     if (queue->size == 1) {
-        pqNodeFree(before, queue);
+        pqNodeFree(before);
+        //pqNodeFree(before, queue);
         queue->first = NULL;
         return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
     }
@@ -365,7 +220,8 @@ PriorityQueue pqCopy(PriorityQueue queue) {
     int size = queue->size;
     new_queue->size = size;
     if (size > 0) {
-        pqNode copy = pqNodeCopyFull(queue->first, queue);
+        pqNode copy = pqNodeCopyFull(queue->first);
+        //pqNode copy = pqNodeCopyFull(queue->first, queue);
         new_queue->first = copy;
         size = size - 1;
     }
@@ -392,7 +248,9 @@ PriorityQueueResult pqInsert(PriorityQueue queue, PQElement element, PQElementPr
     if (queue == NULL || element == NULL || priority == NULL) {
         return PQ_NULL_ARGUMENT;
     }
-    pqNode new_node = pqNodeCreate(queue->copyElement(element), queue->copyPriority(priority), NULL);
+    //pqNode new_node = pqNodeCreate(queue->copyElement(element), queue->copyPriority(priority), NULL);
+    pqNode new_node = pqNodeCreate(queue->copyElement(element), queue->copyPriority(priority), NULL,
+                                   queue->copyElement, queue->freeElement, queue->copyPriority, queue->freePriority);
     setIteratorToNULL(queue);
     if (new_node == NULL || new_node->element == NULL || new_node->priority == NULL) {
         return PQ_OUT_OF_MEMORY;
@@ -471,7 +329,8 @@ PriorityQueueResult pqRemove(PriorityQueue queue) {
         return PQ_SUCCESS;
     }
     pqNode temp = pqNodeGetNext(queue->first);
-    pqNodeFree(queue->first, queue);
+    pqNodeFree(queue->first);
+    //pqNodeFree(queue->first, queue);
     queue->first = temp;
     setIteratorToNULL(queue);
     return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
