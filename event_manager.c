@@ -102,7 +102,9 @@ bool equalMemberElements(PQElement m1, PQElement m2)
 
 int compareMemberElementPriorities(PQElementPriority p1, PQElementPriority p2)
 {
-    return 2;
+    int* m1 = p1;
+    int* m2 = p2;
+    return *m2-*m1;
 }
 
 Event CreateEvent(char* name, Date date, int event_id)
@@ -540,6 +542,25 @@ int emGetEventsAmount(EventManager em)
     return count;
 }
 
+int getEventsAmountByMember(EventManager em, Member m)
+{
+    if (!em)
+    {
+        return -1;
+    }
+    int count = 0;
+    Event event = pqGetFirst(em->Events);
+    while (event)
+    {
+        if (pqContains(event->Members, m)&& (dateCompare(em->Date, event->EventDate) <= 0))
+        {
+            count++;
+        }
+        event = pqGetNext(em->Events);
+    }
+    return count;
+}
+
 char* emGetNextEvent(EventManager em)
 {
     if (!em)
@@ -568,16 +589,19 @@ void emPrintAllEvents(EventManager em, const char* file_name)
     Member m;
     while (e)
     {
-        dateGet(e->EventDate, &day, &month, &year);
-        pos += sprintf(&str[pos], "%s,", e->EventName);
-        pos += sprintf(&str[pos], "%d.%d.%d", day, month, year);
-        m = pqGetFirst(e->Members);
-        while (m)
+        if (dateCompare(em->Date, e->EventDate) <= 0)
         {
-            pos += sprintf(&str[pos], ",%s", m->MemberName);
-            m = pqGetNext(e->Members);
+            dateGet(e->EventDate, &day, &month, &year);
+            pos += sprintf(&str[pos], "%s,", e->EventName);
+            pos += sprintf(&str[pos], "%d.%d.%d", day, month, year);
+            m = pqGetFirst(e->Members);
+            while (m)
+            {
+                pos += sprintf(&str[pos], ",%s", m->MemberName);
+                m = pqGetNext(e->Members);
+            }
+            pos += sprintf(&str[pos], "\n");
         }
-        pos += sprintf(&str[pos], "\n");
         e = pqGetNext(em->Events);
     }
     FILE* fp = fopen(file_name, "w");
@@ -589,36 +613,19 @@ void emPrintAllEvents(EventManager em, const char* file_name)
     destroyString(str);
 }
 
-int memberEventCount(EventManager em, Member m)
-{
-    int count=0;
-    /*
-    PQ_FOREACH(Event, e, em->Events)
-    {
-        PQ_FOREACH(int, member_id, e->member_ids)
-        {
-            if(member_id==m->member_id)
-            {
-                count++;
-            }
-        }
-    }
-    */
-    return count;
-}
-
 void emPrintAllResponsibleMembers(EventManager em, const char* file_name)
 {
     Member m=pqGetFirst(em->Members);
     char str[60];
-    int pos = 0;
+    int pos = 0, count=0;
     while(m)
     {
-        pos += sprintf(&str[pos], "%s,%d\n", m->MemberName, m->member_id);
+        count = getEventsAmountByMember(em, m);
+        pos += sprintf(&str[pos], "%s,%d\n", m->MemberName, count);
         m= pqGetNext(em->Members);
     }
     FILE *fp = fopen(file_name, "w");
-    if (pos!= 0) 
+    if (pos!= 0&&count!=0) 
     {
         fprintf(fp, "%s", str);
     }
