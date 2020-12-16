@@ -55,32 +55,72 @@ void destroyString(char* c)
     }
 }
 
+PQElement copyMemberId(PQElement m_id)
+{
+    return m_id;
+}
 
-Event CreateEvent(char* name, Date date, int event_id, PriorityQueue CommissionMembers)
+PQElementPriority copyMemberIdPriority(PQElementPriority p)
+{
+    return p;
+}
+
+void freeMemberIdElement(PQElement m_id)
+{
+    free(m_id);
+}
+
+void freeMemberIdElementPriority(PQElementPriority p)
+{
+    free(p);
+}
+
+bool equalMemberIdElements(PQElement m_id1, PQElement m_id2)
+{
+    return m_id1== m_id2;
+}
+
+int compareMemberIdElementPriorities(PQElementPriority p1, PQElementPriority p2)
+{
+    return 1;
+}
+
+Event CreateEvent(char* name, Date date, int event_id)
 {
     Event e = malloc(sizeof(*e));
-    e->EventName = malloc(sizeof(char)*sizeof(*name));
+    e->EventName = malloc(sizeof(e->EventName));
     strcpy(e->EventName, name);
     e->EventDate = dateCopy(date);
     e->event_id = event_id;
-    e->member_ids = pqCopy(CommissionMembers);
+    e->member_ids = pqCreate(copyMemberId, freeMemberIdElement, equalMemberIdElements, copyMemberIdPriority, freeMemberIdElementPriority, compareMemberIdElementPriorities);
     return e;
 }
 
 Event copyEvent(Event e)
 {
-    Event event = malloc(sizeof(*event));
+    Event event = malloc(sizeof(*e));
+    event->EventName = malloc(sizeof(e->EventName));
+    strcpy(event->EventName, e->EventName);
     event->EventDate = dateCopy(e->EventDate);
     event->event_id = e->event_id;
-    event->EventName = malloc(sizeof(*e->EventName));
-    strcpy(event->EventName, e->EventName);
+    event->member_ids= malloc(sizeof(e->member_ids));
     event->member_ids = pqCopy(e->member_ids);
     return event;
+}
+
+Member copyMember(Member m)
+{
+    Member member = malloc(sizeof(*m));
+    member->MemberName = malloc(sizeof(m->MemberName));
+    strcpy(member->MemberName, m->MemberName);
+    member->member_id = m->member_id;
+    return member;
 }
 
 void destroyMember(Member m)
 {
     destroyString(m->MemberName);
+    free(m->MemberName);
 }
 
 void destroyEvent(Event e)
@@ -117,12 +157,12 @@ bool equalPQElements(PQElement e1, PQElement e2)
 
 int comparePQElementPriorities(PQElementPriority p1, PQElementPriority p2)
 {
-    return dateCompare(p1,p2);
+    return dateCompare(p2,p1);
 }
 
-PQElement copyMember(PQElement e)
+PQElement copyMember1(PQElement m)
 {
-    return copyMember(e);
+    return copyMember(m);
 }
 
 PQElementPriority copyMemberPriority(PQElementPriority p)
@@ -140,9 +180,10 @@ void freeMemberElementPriority(PQElementPriority p)
     free(p);
 }
 
-bool equalMemberElements(PQElement e1, PQElement e2)
+bool equalMemberElements(PQElement m1, PQElement m2)
 {
-    return false;
+    Member member1 = (Member)m1, member2 = (Member)m2;
+    return member1->member_id == member2->member_id;
 }
 
 int compareMemberElementPriorities(PQElementPriority p1, PQElementPriority p2)
@@ -155,7 +196,7 @@ EventManager createEventManager(Date date)
     EventManager em=malloc(sizeof(*em));
     em->Date=dateCopy(date);
     em->Events = pqCreate(copyEvent1, freePQElement, equalPQElements, copyEventPriority, freePQElementPriority, comparePQElementPriorities);
-    em->Members = pqCreate(copyMember, freeMemberElement, equalMemberElements, copyMemberPriority, freeMemberElementPriority, compareMemberElementPriorities);
+    em->Members = pqCreate(copyMember1, freeMemberElement, equalMemberElements, copyMemberPriority, freeMemberElementPriority, compareMemberElementPriorities);
     return em;
 }
 
@@ -247,7 +288,7 @@ EventManagerResult emAddEventByDate(EventManager em, char* event_name, Date date
         }
         event = pqGetNext(em->Events);
     }
-    Event e=CreateEvent(event_name, date, event_id, NULL);
+    Event e=CreateEvent(event_name, date, event_id);
     if(e==NULL)
     {
         return EM_OUT_OF_MEMORY;
@@ -337,7 +378,7 @@ EventManagerResult emChangeEventDate(EventManager em, int event_id, Date new_dat
 Member CreateMember(char* member_name, int member_id)
 {
     Member m = malloc(sizeof(*m));
-    m->MemberName = malloc(sizeof(*member_name));
+    m->MemberName = malloc(sizeof(m->MemberName));
     strcpy(m->MemberName, member_name);
     m->member_id=member_id;
     return m;
@@ -345,7 +386,7 @@ Member CreateMember(char* member_name, int member_id)
 
 EventManagerResult emAddMember(EventManager em, char* member_name, int member_id)
 {
-    if(!(em&&member_name&&member_id))
+    if(!(em&&member_name))
     {
         return EM_NULL_ARGUMENT;
     }
@@ -358,16 +399,16 @@ EventManagerResult emAddMember(EventManager em, char* member_name, int member_id
     {
         if (member->member_id == member_id)
         {
-            return EM_EVENT_ID_ALREADY_EXISTS;
+            return EM_MEMBER_ID_ALREADY_EXISTS;
         }
-        member = pqGetNext(em->Events);
+        member = pqGetNext(em->Members);
     }
     Member m=CreateMember(member_name, member_id);
     if(!m)
     {
         return EM_OUT_OF_MEMORY;
     }
-    pqInsert(em->Members, m, NULL);
+    pqInsert(em->Members, m, &member_id);
     return EM_SUCCESS;
 }
 
@@ -376,12 +417,13 @@ Member GetMemberById(EventManager em, int member_id)
     Member m=pqGetFirst(em->Members);
     while(m->member_id!=member_id)
     {
+        if(m->member_id==member_id)
+        {
+            return m;
+        }
         m=pqGetNext(em->Members);
     }
-    if(m->member_id==member_id)
-    {
-        return m;
-    }
+    
     return NULL;
 }
 
@@ -408,86 +450,90 @@ EventManagerResult checkMemberEvent(int member_id, int event_id, Event e, Member
 
 EventManagerResult emAddMemberToEvent(EventManager em, int member_id, int event_id)
 {
-    if(!(em&&member_id&&event_id))
+    if(!em)
     {
         return EM_NULL_ARGUMENT;
     }
+    if (member_id < 0)
+    {
+        return EM_INVALID_MEMBER_ID;
+    }
+    if (event_id < 0)
+    {
+        return EM_INVALID_EVENT_ID;
+    }
     Event e=GetEventById(em, event_id);
-    Member m=GetMemberById(em, member_id);
-    if(e==NULL||m==NULL)
+    if (!e)
     {
-        return EM_OUT_OF_MEMORY;
+        return EM_EVENT_ID_NOT_EXISTS;
     }
-    EventManagerResult result=checkMemberEvent(member_id, event_id, e, m);
-    if(result!=EM_SUCCESS)
+    int *m_id = pqGetFirst(e->member_ids);
+    int* tmp = &member_id;
+    while (m_id)
     {
-        return result;
+        if (*m_id == member_id)
+        {
+            return EM_EVENT_AND_MEMBER_ALREADY_LINKED;
+        }
+        m_id = pqGetNext(e->member_ids);
     }
-bool found = false;
-/*
-PQ_FOREACH(int, member_id, e->member_ids)
-{
-    if(member_id==m->member_id)
-    {
-        found=true;
-    }
-}
-*/
-if (found)
-{
-    return EM_EVENT_AND_MEMBER_ALREADY_LINKED;
-}
-//pqInsert(e->member_ids, m->member_id, NULL);
-destroyEvent(e);
-destroyMember(m);
-return EM_SUCCESS;
+    pqInsert(e->member_ids, tmp, tmp);
+    return EM_SUCCESS;
 }
 
 EventManagerResult emRemoveMemberFromEvent(EventManager em, int member_id, int event_id)
 {
-    if (!(em && member_id && event_id))
+    if (!em)
     {
         return EM_NULL_ARGUMENT;
     }
-    Event e = GetEventById(em, event_id);
-    Member m = GetMemberById(em, member_id);
-    if (e == NULL || m == NULL)
+    if (member_id < 0)
     {
-        return EM_OUT_OF_MEMORY;
+        return EM_INVALID_MEMBER_ID;
     }
-    EventManagerResult result = checkMemberEvent(member_id, event_id, e, m);
-    if (result != EM_SUCCESS)
+    if (event_id < 0)
     {
-        return result;
+        return EM_INVALID_EVENT_ID;
+    }
+    Event e = GetEventById(em, event_id);
+    if (!e)
+    {
+        return EM_EVENT_ID_NOT_EXISTS;
     }
     bool found = false;
-    /*
-    PQ_FOREACH(int, member_id, e->member_ids)
+    Member member = pqGetFirst(em->Members);
+    while (member)
     {
-        if(member_id==m->member_id)
+        if (member->member_id == member_id)
         {
-            found=true;
-            id=m->member_id;
+            found = true;
         }
+        member = pqGetNext(em->Members);
     }
-    */
     if (!found)
     {
-        return EM_EVENT_AND_MEMBER_NOT_LINKED;
+        return EM_MEMBER_ID_NOT_EXISTS;
     }
-    //pqRemoveElement(e->member_ids,id);
-    destroyEvent(e);
-    destroyMember(m);
-    return EM_SUCCESS;
+    int* m_id = pqGetFirst(e->member_ids);
+    while (m_id)
+    {
+        if (*m_id == member_id)
+        {
+            pqRemoveElement(e->member_ids, &member_id);
+            return EM_SUCCESS;
+        }
+        m_id = pqGetNext(e->member_ids);
+    }
+    return EM_EVENT_AND_MEMBER_NOT_LINKED;
 }
 
 EventManagerResult emTick(EventManager em, int days)
 {
-    if (!(em && days))
+    if (!em )
     {
         return EM_NULL_ARGUMENT;
     }
-    if (days < 0)
+    if (days<=0)
     {
         return EM_INVALID_DATE;
     }
@@ -501,11 +547,15 @@ EventManagerResult emTick(EventManager em, int days)
 
 int emGetEventsAmount(EventManager em)
 {
+    if (!em)
+    {
+        return -1;
+    }
     int count = 0;
     Event event = pqGetFirst(em->Events);
     while (event)
     {
-        if (dateCompare(em->Date, event->EventDate) < 0)
+        if (dateCompare(em->Date, event->EventDate) <= 0)
         {
             count++;
         }
@@ -516,19 +566,20 @@ int emGetEventsAmount(EventManager em)
 
 char* emGetNextEvent(EventManager em)
 {
-    Event event = pqGetFirst(em->Events);
-    Date d = dateCopy(event->EventDate);
-    char* name=event->EventName;
+    if (!em)
+    {
+        return NULL;
+    }
+    Event event = pqGetFirst(em->Events), e=copyEvent(event);
     while(event)
     {
-        if (dateCompare(event->EventDate, d) < 0)
+        if (dateCompare(e->EventDate, event->EventDate) > 0)
         {
-            d = dateCopy(event->EventDate);
-            name = event->EventName;
+            e = copyEvent(event);
         }
         event = pqGetNext(em->Events);
     }
-    return name;
+    return e->EventName;
    
 }
 
