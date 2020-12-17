@@ -48,7 +48,7 @@ typedef enum EventManagerResult_t {
 Member copyMember(Member m)
 {
     Member member = malloc(sizeof(*m));
-    member->MemberName = malloc(sizeof(m->MemberName));
+    member->MemberName = malloc(sizeof(char)*(strlen(m->MemberName)+1));
     strcpy(member->MemberName, m->MemberName);
     member->member_id = m->member_id;
     return member;
@@ -81,7 +81,6 @@ PQElementPriority copyMemberPriority(PQElementPriority p)
 void freeMemberElement(PQElement m)
 {
     destroyMember(m);
-    free(m);
 }
 
 void freeMemberElementPriority(PQElementPriority p)
@@ -105,7 +104,7 @@ int compareMemberElementPriorities(PQElementPriority p1, PQElementPriority p2)
 Event CreateEvent(char* name, Date date, int event_id)
 {
     Event e = malloc(sizeof(*e));
-    e->EventName = malloc(sizeof(e->EventName));
+    e->EventName = malloc(sizeof(char)*(strlen(name)+1));
     strcpy(e->EventName, name);
     e->EventDate = dateCopy(date);
     e->event_id = event_id;
@@ -116,7 +115,7 @@ Event CreateEvent(char* name, Date date, int event_id)
 Event copyEvent(Event e)
 {
     Event event = malloc(sizeof(*e));
-    event->EventName = malloc(sizeof(e->EventName));
+    event->EventName = malloc(sizeof(char)*(strlen(e->EventName)+1));
     strcpy(event->EventName, e->EventName);
     event->EventDate = dateCopy(e->EventDate);
     event->event_id = e->event_id;
@@ -309,7 +308,6 @@ EventManagerResult emRemoveEvent(EventManager em, int event_id)
         return EM_EVENT_NOT_EXISTS;
     }
     pqRemoveElement(em->Events, e);
-    destroyEvent(e);
     return EM_SUCCESS;
 }
 
@@ -341,7 +339,7 @@ EventManagerResult emChangeEventDate(EventManager em, int event_id, Date new_dat
 Member CreateMember(char* member_name, int member_id)
 {
     Member m = malloc(sizeof(*m));
-    m->MemberName = malloc(sizeof(m->MemberName));
+    m->MemberName = malloc(sizeof(char)*(strlen(member_name)+1));
     strcpy(m->MemberName, member_name);
     m->member_id=member_id;
     return m;
@@ -569,7 +567,6 @@ char* emGetNextEvent(EventManager em)
         return NULL;
     }
     Event e = GetEventById(em, id);
-    destroyEvent(e);
     return e->EventName;
 }
 
