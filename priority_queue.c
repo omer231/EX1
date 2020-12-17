@@ -141,6 +141,14 @@ static PriorityQueueResult pqRemoveElementAndPriority(PriorityQueue queue, PQEle
         return PQ_NULL_ARGUMENT;
     }
     pqNode before = queue->first;
+    if (queue->equalElements(element, pqNodeGetElement(before))) {
+        if (priority == NULL || queue->comparePriorities(priority, pqNodeGetPriority(before)) == 0) {
+            pqNode temp = before->next;
+            queue->first = temp;
+            pqNodeFree(before);
+            return pqUpdateSizeAfterRemoveAndReturnSuccess(queue);
+        }
+    }
     while (before->next != NULL) {
         if (queue->equalElements(element, pqNodeGetElement(before->next))) {
             if (priority == NULL || queue->comparePriorities(priority, pqNodeGetPriority(before->next)) == 0) {
