@@ -119,7 +119,11 @@ bool dateGet(Date date, int* day, int* month, int* year)
 
 int timediff(Date date1, Date date2)
 {
-    return ((date1->year)-(date2->year))*DAYS_IN_YEAR+((date1->month)-(date2->month))*DAYS_IN_MONTH+((date1->day)-(date2->day));
+    int day1, month1, year1;
+    dateGet(date1, &day1, &month1, &year1);
+    int day2, month2, year2;
+    dateGet(date2, &day2, &month2, &year2);
+    return (year1-year2)*DAYS_IN_YEAR+(month1-month2)*DAYS_IN_MONTH+(day1-day2);
 }
 
 int dateCompare(Date date1, Date date2)
