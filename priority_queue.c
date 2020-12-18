@@ -44,8 +44,8 @@ inline static PriorityQueueResult pqUpdateSizeAfterInsertAndReturnSuccess(Priori
     return PQ_SUCCESS;
 }
 
-inline static PriorityQueueResult pqUpdateSizeAfterRemoveAndReturnSuccess(PriorityQueue queue){
-    if(queue == NULL){
+inline static PriorityQueueResult pqUpdateSizeAfterRemoveAndReturnSuccess(PriorityQueue queue) {
+    if (queue == NULL) {
         return PQ_OUT_OF_MEMORY;
     }
     queue->size = queue->size - 1;
@@ -239,7 +239,7 @@ int pqGetSize(PriorityQueue queue) {
     if (queue == NULL) {
         return ELEMENT_NOT_FOUND;
     }
-    return (queue->size);
+    return queue->size;
 }
 
 bool pqContains(PriorityQueue queue, PQElement element) {
@@ -263,12 +263,13 @@ PriorityQueueResult pqInsert(PriorityQueue queue, PQElement element, PQElementPr
         queue->first = new_node;
         return pqUpdateSizeAfterInsertAndReturnSuccess(queue);
     }
-    if (queue->comparePriorities(new_node->priority, queue->first->priority) > 0) {
+    int priority_new_node_first_in_queue = queue->comparePriorities(new_node->priority, queue->first->priority);
+    if (priority_new_node_first_in_queue > 0) {
         new_node->next = queue->first;
         queue->first = new_node;
         return pqUpdateSizeAfterInsertAndReturnSuccess(queue);
     }
-    if (queue->comparePriorities(new_node->priority, queue->first->priority) == 0) {
+    if (priority_new_node_first_in_queue == 0) {
         new_node->next = queue->first->next;
         queue->first->next = new_node;
         return pqUpdateSizeAfterInsertAndReturnSuccess(queue);
@@ -287,12 +288,13 @@ PriorityQueueResult pqInsert(PriorityQueue queue, PQElement element, PQElementPr
     }
     pqNode temp_next = pqNodeGetNext(temp);
     while (temp_next != NULL) {
-        if (queue->comparePriorities(new_node->priority, pqNodeGetPriority(temp_next)) > 0) {
+        int priority_new_node_temp_next = queue->comparePriorities(new_node->priority, pqNodeGetPriority(temp_next));
+        if (priority_new_node_temp_next > 0) {
             new_node->next = temp_next;
             temp->next = new_node;
             return pqUpdateSizeAfterInsertAndReturnSuccess(queue);
         }
-        if (queue->comparePriorities(new_node->priority, pqNodeGetPriority(temp_next)) == 0) {
+        if (priority_new_node_temp_next == 0) {
             bool next_is_also_same_priority = false;
             if (temp_next->next != NULL &&
                 queue->comparePriorities(new_node->priority, pqNodeGetPriority(temp_next->next)) == 0) {
