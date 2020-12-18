@@ -377,7 +377,7 @@ EventManagerResult emAddMember(EventManager em, char* member_name, int member_id
 Member GetMemberById(EventManager em, int member_id)
 {
     Member m=pqGetFirst(em->Members);
-    while(m->member_id!=member_id)
+    while(m)
     {
         if(m->member_id==member_id)
         {
@@ -606,26 +606,51 @@ void emPrintAllEvents(EventManager em, const char* file_name)
     pqDestroy(Events);
 }
 
+int emGetNextMemberId(EventManager em, PriorityQueue Members)
+{
+    Member member = pqGetFirst(Members);
+    int max = 0, max_id = member->member_id;
+    while (member)
+    {
+        int tmp = getEventsAmountByMember(em, member);
+        if (tmp > max)
+        {
+            max = tmp;
+            max_id = member->member_id;
+        }
+        member = pqGetNext(Members);
+    }
+    return max_id;
+}
+
 void emPrintAllResponsibleMembers(EventManager em, const char* file_name)
 {
-    Member m = pqGetFirst(em->Members);
+    Member m=NULL;
+    PriorityQueue Members = pqCopy(em->Members);
     char str[4000];
     int pos = 0, count = 0;
-    while (m)
+    int size = pqGetSize(em->Members);
+    for (int i = 0; i < size; i++)
     {
-        count = getEventsAmountByMember(em, m);
-        if (count > 0)
+        m = GetMemberById(em , emGetNextMemberId(em, Members));
+        
+        if (m)
         {
-            pos += sprintf(&str[pos], "%s,%d\n", m->MemberName, count);
+            count = getEventsAmountByMember(em, m);
+            if (count > 0)
+            {
+                pos += sprintf(&str[pos], "%s,%d\n", m->MemberName, count);
+            }
         }
-        m = pqGetNext(em->Members);
+        pqRemoveElement(Members, m);
     }
     FILE* fp = fopen(file_name, "w");
-    if (pos != 0 && count != 0)
+    if (pos != 0)
     {
         fprintf(fp, "%s", str);
     }
     fclose(fp);
+    pqDestroy(Members);
 }
 
 #endif //EVENT_MANAGER_H
