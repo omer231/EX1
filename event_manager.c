@@ -37,7 +37,7 @@ typedef enum EventManagerResult_t {
 Member GetMemberById(EventManager em, int member_id)
 {
     Member member = pqGetFirst(em->Members);
-    while (memberGetId(member) != member_id)
+    while (member)
     {
         if (memberGetId(member)== member_id)
         {
@@ -254,7 +254,6 @@ EventManagerResult emAddMember(EventManager em, char* member_name, int member_id
         return EM_OUT_OF_MEMORY;
     }
     pqInsert(em->Members, new_member, &member_id);
-    destroyMember(new_member);
     return EM_SUCCESS;
 }
 
@@ -339,6 +338,7 @@ EventManagerResult emRemoveMemberFromEvent(EventManager em, int member_id, int e
         {
             pqRemoveElement(eventGetMembers(event), member);
             return EM_SUCCESS;
+            
         }
         member = pqGetNext(eventGetMembers(event));
     }
@@ -403,7 +403,15 @@ int getEventsAmountByMember(EventManager em, Member m)
 
 int emGetNextEventId(PriorityQueue Events, Date date)
 {
+    if (!Events || !date)
+    {
+        return -1;
+    }
     Event event = pqGetFirst(Events);
+    if (!event)
+    {
+        return -1;
+    }
     int min = -1, min_id = eventGetId(event);
     bool changed = false;
     while (event)
@@ -435,8 +443,12 @@ char* emGetNextEvent(EventManager em)
     {
         return NULL;
     }
-    Event e = GetEventById(em, id);
-    return eventGetName(e);
+    Event event = GetEventById(em, id);
+    if (!event)
+    {
+        return NULL;
+    }
+    return eventGetName(event);
 }
 
 void emPrintAllEvents(EventManager em, const char* file_name)
@@ -502,7 +514,6 @@ void emPrintAllResponsibleMembers(EventManager em, const char* file_name)
     for (int i = 0; i < size; i++)
     {
         member = GetMemberById(em , emGetNextMemberId(em, Members));
-        
         if (member)
         {
             count = getEventsAmountByMember(em, member);
