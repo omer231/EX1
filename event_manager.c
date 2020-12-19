@@ -175,49 +175,6 @@ EventManagerResult emRemoveEvent(EventManager em, int event_id) {
     return EM_SUCCESS;
 }
 
-EventManagerResult emChangeEventDate(EventManager em, int event_id, Date new_date) {
-    if (!(em && event_id && new_date)) {
-        return EM_NULL_ARGUMENT;
-    }
-    if (dateCompare(em->Date, new_date) > 0) {
-        return EM_INVALID_DATE;
-    }
-    Event event = GetEventById(em, event_id);
-    if (!event) {
-        return EM_EVENT_ID_NOT_EXISTS;
-    }
-    EventManagerResult result = checkDateIdName(em, new_date, event_id, eventGetName(event));
-    if (result != EM_SUCCESS) {
-        return result;
-    }
-    dateDestroy(eventGetDate(event));
-    eventSetDate(event, dateCopy(new_date));
-    return EM_SUCCESS;
-}
-
-EventManagerResult emAddMember(EventManager em, char *member_name, int member_id) {
-    if (!(em && member_name)) {
-        return EM_NULL_ARGUMENT;
-    }
-    if (member_id < 0) {
-        return EM_INVALID_MEMBER_ID;
-    }
-    Member member = pqGetFirst(em->Members);
-    while (member) {
-        if (memberGetId(member) == member_id) {
-            return EM_MEMBER_ID_ALREADY_EXISTS;
-        }
-        member = pqGetNext(em->Members);
-    }
-    Member new_member = createMember(member_name, member_id);
-    if (!new_member) {
-        return EM_OUT_OF_MEMORY;
-    }
-    pqInsert(em->Members, new_member, &member_id);
-    destroyMember(new_member);
-    return EM_SUCCESS;
-}
-
 EventManagerResult emAddMemberToEvent(EventManager em, int member_id, int event_id) {
     if (!em) {
         return EM_NULL_ARGUMENT;
@@ -249,6 +206,67 @@ EventManagerResult emAddMemberToEvent(EventManager em, int member_id, int event_
     }
     return EM_MEMBER_ID_NOT_EXISTS;
 }
+
+EventManagerResult emChangeEventDate(EventManager em, int event_id, Date new_date)
+{
+    if (!(em && event_id && new_date))
+    {
+        return EM_NULL_ARGUMENT;
+    }
+    if (dateCompare(em->Date, new_date) > 0)
+    {
+        return EM_INVALID_DATE;
+    }
+    Event event = GetEventById(em, event_id);
+    if (!event)
+    {
+        return EM_EVENT_ID_NOT_EXISTS;
+    }
+    EventManagerResult result = checkDateIdName(em, new_date, event_id, eventGetName(event));
+    if (result != EM_SUCCESS)
+    {
+        return result;
+    }
+    PriorityQueue Members = pqCopy(eventGetMembers(event));
+    char* name = malloc(sizeof(char) * (strlen(eventGetName(event)) + 1));
+    strcpy(name, eventGetName(event));
+    emRemoveEvent(em, event_id);
+    emAddEventByDate(em, name, new_date, event_id);
+    Member member = pqGetFirst(Members);
+    while (member)
+    {
+        emAddMemberToEvent(em, memberGetId(member), event_id);
+        member = pqGetNext(Members);
+    }
+    pqDestroy(Members);
+    free(name);
+    return EM_SUCCESS;
+}
+
+EventManagerResult emAddMember(EventManager em, char *member_name, int member_id) {
+    if (!(em && member_name)) {
+        return EM_NULL_ARGUMENT;
+    }
+    if (member_id < 0) {
+        return EM_INVALID_MEMBER_ID;
+    }
+    Member member = pqGetFirst(em->Members);
+    while (member) {
+        if (memberGetId(member) == member_id) {
+            return EM_MEMBER_ID_ALREADY_EXISTS;
+        }
+        member = pqGetNext(em->Members);
+    }
+    Member new_member = createMember(member_name, member_id);
+    if (!new_member) {
+        return EM_OUT_OF_MEMORY;
+    }
+    pqInsert(em->Members, new_member, &member_id);
+    destroyMember(new_member);
+    return EM_SUCCESS;
+}
+
+
 
 EventManagerResult emRemoveMemberFromEvent(EventManager em, int member_id, int event_id) {
     if (!em) {
