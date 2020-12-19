@@ -84,4 +84,4 @@ char *memberGetName(Member member) {
     return member->MemberName;
 }
 
-#endif //DATE_H_
+#endif //MEMBER_H_
