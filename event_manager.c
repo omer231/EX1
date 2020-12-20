@@ -1,6 +1,3 @@
-#ifndef EVENT_MANAGER_H
-#define EVENT_MANAGER_H
-
 #include "priority_queue.h"
 #include "event_manager.h"
 #include "event.h"
@@ -8,32 +5,14 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #define ELEMENT_NOT_FOUND -1
+#define DEFAULT_EVENT_PRIORITY 1
 
-typedef struct EventManager_t {
+struct EventManager_t {
     PriorityQueue Events;
     Date Date;
     PriorityQueue Members;
-} *EventManager;
-
-typedef enum EventManagerResult_t {
-    EM_SUCCESS,
-    EM_OUT_OF_MEMORY,
-    EM_NULL_ARGUMENT,
-    EM_INVALID_DATE,
-    EM_INVALID_EVENT_ID,
-    EM_EVENT_ALREADY_EXISTS,
-    EM_EVENT_ID_ALREADY_EXISTS,
-    EM_EVENT_NOT_EXISTS,
-    EM_EVENT_ID_NOT_EXISTS,
-    EM_INVALID_MEMBER_ID,
-    EM_MEMBER_ID_ALREADY_EXISTS,
-    EM_MEMBER_ID_NOT_EXISTS,
-    EM_EVENT_AND_MEMBER_ALREADY_LINKED,
-    EM_EVENT_AND_MEMBER_NOT_LINKED,
-    EM_ERROR
-} EventManagerResult;
+};
 
 Member GetMemberById(EventManager em, int member_id) {
     Member member = pqGetFirst(em->Members);
@@ -90,16 +69,15 @@ EventManagerResult checkDateId(EventManager em, Date date, int event_id) {
     return EM_SUCCESS;
 }
 
-bool equal(const char *s1, const char *s2) {
-    if (!s1 || !s2) {
+bool is_str_equal(const char *str1, const char * str2) {
+    if (!str1 || !str2) {
         return false;
     }
-    while (*s1 != '\0' && *s1 == *s2) {
-        ++s1;
-        ++s2;
+    while (*str1 != '\0' && *str1 == *str2) {
+        ++str1;
+        ++str2;
     }
-
-    return *s1 == *s2;
+    return *str1 == *str2;
 }
 
 EventManagerResult checkDateIdName(EventManager em, Date date, int event_id, char *event_name) {
@@ -109,7 +87,7 @@ EventManagerResult checkDateIdName(EventManager em, Date date, int event_id, cha
     } else {
         Event event = pqGetFirst(em->Events);
         while (event) {
-            if (equal(eventGetName(event), event_name) && (dateCompare(date, eventGetDate(event)) == 0)) {
+            if (is_str_equal(eventGetName(event), event_name) && (dateCompare(date, eventGetDate(event)) == 0)) {
                 return EM_EVENT_ALREADY_EXISTS;
             }
             event = pqGetNext(em->Events);
@@ -137,7 +115,7 @@ EventManagerResult emAddEventByDate(EventManager em, char *event_name, Date date
     if (new_event == NULL) {
         return EM_OUT_OF_MEMORY;
     }
-    int priority = pqGetSize(em->Events);
+    int priority = DEFAULT_EVENT_PRIORITY;
     pqInsert(em->Events, new_event, &priority);
     destroyEvent(new_event);
     return EM_SUCCESS;
@@ -199,7 +177,11 @@ EventManagerResult emAddMemberToEvent(EventManager em, int member_id, int event_
     member = pqGetFirst(em->Members);
     while (member) {
         if (memberGetId(member) == member_id) {
-            pqInsert(eventGetMembers(event), member, &member_id);
+            PriorityQueueResult result =pqInsert(eventGetMembers(event), member, &member_id);
+            if (result == PQ_OUT_OF_MEMORY)
+            {
+                return EM_OUT_OF_MEMORY;
+            }
             return EM_SUCCESS;
         }
         member = pqGetNext(em->Members);
@@ -228,7 +210,15 @@ EventManagerResult emChangeEventDate(EventManager em, int event_id, Date new_dat
         return result;
     }
     PriorityQueue Members = pqCopy(eventGetMembers(event));
+    if (!Members)
+    {
+        return EM_OUT_OF_MEMORY;
+    }
     char* name = malloc(sizeof(char) * (strlen(eventGetName(event)) + 1));
+    if (!name)
+    {
+        return EM_OUT_OF_MEMORY;
+    }
     strcpy(name, eventGetName(event));
     emRemoveEvent(em, event_id);
     emAddEventByDate(em, name, new_date, event_id);
@@ -266,19 +256,17 @@ EventManagerResult emAddMember(EventManager em, char *member_name, int member_id
     return EM_SUCCESS;
 }
 
-
-
 EventManagerResult emRemoveMemberFromEvent(EventManager em, int member_id, int event_id) {
     if (!em) {
         return EM_NULL_ARGUMENT;
     }
-    if (member_id < 0) {
-        return EM_INVALID_MEMBER_ID;
-    }
     if (event_id < 0) {
         return EM_INVALID_EVENT_ID;
     }
-    Event event = GetEventById(em, event_id);
+    if (member_id < 0) {
+        return EM_INVALID_MEMBER_ID;
+    }
+        Event event = GetEventById(em, event_id);
     if (!event) {
         return EM_EVENT_ID_NOT_EXISTS;
     }
@@ -357,18 +345,18 @@ int emGetNextEventId(PriorityQueue Events, Date date) {
     if (!event) {
         return ELEMENT_NOT_FOUND;
     }
-    int min = -1, min_id = eventGetId(event);
-    bool changed = false;
+    int min = 0, min_id = eventGetId(event);
+    bool found = false;
     while (event) {
-        int tmp = dateCompare(eventGetDate(event), date);
-        if ((tmp < min || min == -1) && tmp >= 0) {
-            min = tmp;
+        int days_diff = dateCompare(eventGetDate(event), date);
+        if ((days_diff < min || !found) && days_diff >= 0) {
+            min = days_diff;
             min_id = eventGetId(event);
-            changed = true;
+            found = true;
         }
         event = pqGetNext(Events);
     }
-    if (!changed) {
+    if (!found) {
         return ELEMENT_NOT_FOUND;
     }
     return min_id;
@@ -424,9 +412,9 @@ int emGetNextMemberId(EventManager em, PriorityQueue Members) {
     Member member = pqGetFirst(Members);
     int max = 0, max_id = memberGetId(member);
     while (member) {
-        int tmp = getEventsAmountByMember(em, member);
-        if (tmp > max) {
-            max = tmp;
+        int events_amount = getEventsAmountByMember(em, member);
+        if (events_amount > max) {
+            max = events_amount;
             max_id = memberGetId(member);
         }
         member = pqGetNext(Members);
@@ -458,4 +446,3 @@ void emPrintAllResponsibleMembers(EventManager em, const char *file_name) {
     pqDestroy(Members);
 }
 
-#endif //EVENT_MANAGER_H
