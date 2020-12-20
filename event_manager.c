@@ -2,6 +2,7 @@
 #include "event_manager.h"
 #include "event.h"
 #include "member.h"
+#include "date.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -386,35 +387,40 @@ char *emGetNextEvent(EventManager em) {
     return eventGetName(event);
 }
 
-void emPrintAllEvents(EventManager em, const char *file_name) {
-    PriorityQueue Events = pqCopy(em->Events);
-    Event event;
-    char str[40000];
-    int pos = 0;
-    int day, month, year;
-    Member member;
-    int size = pqGetSize(em->Events);
-    for (int i = 0; i < size; i++) {
-        event = GetEventById(em, emGetNextEventId(Events, em->Date));
-        if (event) {
-            dateGet(eventGetDate(event), &day, &month, &year);
-            pos += sprintf(&str[pos], "%s,", eventGetName(event));
-            pos += sprintf(&str[pos], "%d.%d.%d", day, month, year);
-            member = pqGetFirst(eventGetMembers(event));
-            while (member) {
-                pos += sprintf(&str[pos], ",%s", memberGetName(member));
-                member = pqGetNext(eventGetMembers(event));
+void emPrintAllEvents(EventManager em, const char* file_name) {
+    if (em && file_name)
+    {
+        PriorityQueue Events = pqCopy(em->Events);
+        Event event;
+        char str[40000];
+        int pos = 0;
+        int day, month, year;
+        Member member;
+        int size = pqGetSize(em->Events);
+        for (int i = 0; i < size; i++) 
+        {
+            event = GetEventById(em, emGetNextEventId(Events, em->Date));
+            if (event) {
+                dateGet(eventGetDate(event), &day, &month, &year);
+                pos += sprintf(&str[pos], "%s,", eventGetName(event));
+                pos += sprintf(&str[pos], "%d.%d.%d", day, month, year);
+                member = pqGetFirst(eventGetMembers(event));
+                while (member) {
+                    pos += sprintf(&str[pos], ",%s", memberGetName(member));
+                    member = pqGetNext(eventGetMembers(event));
+                }
+                pos += sprintf(&str[pos], "\n");
             }
-            pos += sprintf(&str[pos], "\n");
+            pqRemoveElement(Events, event);
         }
-        pqRemoveElement(Events, event);
+        FILE* fp = fopen(file_name, "w");
+        if (pos != 0)
+        {
+            fprintf(fp, "%s", str);
+        }
+        fclose(fp);
+        pqDestroy(Events);
     }
-    FILE *fp = fopen(file_name, "w");
-    if (pos != 0) {
-        fprintf(fp, "%s", str);
-    }
-    fclose(fp);
-    pqDestroy(Events);
 }
 
 int emGetNextMemberId(EventManager em, PriorityQueue Members) {
@@ -432,26 +438,31 @@ int emGetNextMemberId(EventManager em, PriorityQueue Members) {
 }
 
 void emPrintAllResponsibleMembers(EventManager em, const char *file_name) {
-    Member member = NULL;
-    PriorityQueue Members = pqCopy(em->Members);
-    char str[4000];
-    int pos = 0, count = 0;
-    int size = pqGetSize(em->Members);
-    for (int i = 0; i < size; i++) {
-        member = GetMemberById(em, emGetNextMemberId(em, Members));
-        if (member) {
-            count = getEventsAmountByMember(em, member);
-            if (count > 0) {
-                pos += sprintf(&str[pos], "%s,%d\n", memberGetName(member), count);
+    if (em && file_name)
+    {
+        Member member = NULL;
+        PriorityQueue Members = pqCopy(em->Members);
+        char str[4000];
+        int pos = 0, count = 0;
+        int size = pqGetSize(em->Members);
+        for (int i = 0; i < size; i++) 
+        {
+            member = GetMemberById(em, emGetNextMemberId(em, Members));
+            if (member) {
+                count = getEventsAmountByMember(em, member);
+                if (count > 0) {
+                    pos += sprintf(&str[pos], "%s,%d\n", memberGetName(member), count);
+                }
             }
+            pqRemoveElement(Members, member);
         }
-        pqRemoveElement(Members, member);
+        FILE* fp = fopen(file_name, "w");
+        if (pos != 0)
+        {
+            fprintf(fp, "%s", str);
+        }
+        fclose(fp);
+        pqDestroy(Members);
     }
-    FILE *fp = fopen(file_name, "w");
-    if (pos != 0) {
-        fprintf(fp, "%s", str);
-    }
-    fclose(fp);
-    pqDestroy(Members);
 }
 
