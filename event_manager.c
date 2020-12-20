@@ -304,6 +304,15 @@ EventManagerResult emTick(EventManager em, int days) {
         days--;
         dateTick(em->Date);
     }
+    Event event = pqGetFirst(em->Events);
+    while (event)
+    {
+        if (dateCompare(em->Date, eventGetDate(event)) > 0)
+        {
+            emRemoveEvent(em, eventGetId(event));
+        }
+        event = pqGetNext(em->Events);
+    }
     return EM_SUCCESS;
 }
 
@@ -387,7 +396,7 @@ void emPrintAllEvents(EventManager em, const char *file_name) {
     int size = pqGetSize(em->Events);
     for (int i = 0; i < size; i++) {
         event = GetEventById(em, emGetNextEventId(Events, em->Date));
-        if (event && dateCompare(em->Date, eventGetDate(event)) <= 0) {
+        if (event) {
             dateGet(eventGetDate(event), &day, &month, &year);
             pos += sprintf(&str[pos], "%s,", eventGetName(event));
             pos += sprintf(&str[pos], "%d.%d.%d", day, month, year);
