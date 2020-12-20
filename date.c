@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
-
+#include "date.h"
 #define MIN_DAY 1
 #define DAYS_IN_MONTH 30
 #define MIN_MONTH 1
@@ -10,11 +10,11 @@
 
 /** Type for defining the date */
 
-typedef struct Date_t {
+struct Date_t {
     int day;
     int month;
     int year;
-} *Date;
+};
 
 /**
 * dateCreate: Allocates a new date.
