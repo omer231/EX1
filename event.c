@@ -87,32 +87,28 @@ Event createEvent(char *name, Date date, int event_id) {
 }
 
 char *eventGetName(Event event) {
-    if (event)
-    {
+    if (event) {
         return event->EventName;
     }
     return NULL;
 }
 
 Date eventGetDate(Event event) {
-    if (event)
-    {
+    if (event) {
         return event->EventDate;
     }
     return NULL;
 }
 
 int eventGetId(Event event) {
-    if (event)
-    {
+    if (event) {
         return event->event_id;
     }
     return EVENT_NULL_ERR;
 }
 
 PriorityQueue eventGetMembers(Event event) {
-    if (event)
-    {
+    if (event) {
         return event->Members;
     }
     return NULL;
