@@ -1,6 +1,6 @@
 #ifndef EVENT_H_
 #define EVENT_H_
-
+#define EVENT_NULL_ERR -1
 #include "date.h"
 #include <string.h>
 #include <stdlib.h>
@@ -87,23 +87,35 @@ Event createEvent(char *name, Date date, int event_id) {
 }
 
 char *eventGetName(Event event) {
-    return event->EventName;
+    if (event)
+    {
+        return event->EventName;
+    }
+    return NULL;
 }
 
 Date eventGetDate(Event event) {
-    return event->EventDate;
+    if (event)
+    {
+        return event->EventDate;
+    }
+    return NULL;
 }
 
 int eventGetId(Event event) {
-    return event->event_id;
+    if (event)
+    {
+        return event->event_id;
+    }
+    return EVENT_NULL_ERR;
 }
 
 PriorityQueue eventGetMembers(Event event) {
-    return event->Members;
-}
-
-void eventSetDate(Event event, Date date) {
-    event->EventDate = date;
+    if (event)
+    {
+        return event->Members;
+    }
+    return NULL;
 }
 
 

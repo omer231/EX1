@@ -35,7 +35,7 @@ Event createEvent(char* name, Date date, int event_id);
 Event copyEvent(Event event);
 
 /**
-* copyMemberPQElement: copies a event element.
+* copyMemberPQElement: copies an event element.
 *
 * @param member_element - the event element to copy.
 * @return
@@ -102,7 +102,7 @@ char* eventGetName(Event event);
 /**
 * eventGetDate: Get the id of the provided event.
 *
-* @param event - the event we want to get the id of.
+* @param event - the event we want to get the date of.
 * @return
 * 	NULL - the event provided is null.
 * 	The Date of the event in case of sucess.
@@ -114,7 +114,7 @@ Date eventGetDate(Event event);
 *
 * @param event - the event we want to get the id of.
 * @return
-* 	-1 - the event is null.
+* 	EVENT_NULL_ERR - the event is null.
 * 	The id of the event in case of sucess.
 */
 int eventGetId(Event event);
@@ -128,12 +128,5 @@ int eventGetId(Event event);
 * 	The pointer for the event's PriorityQueue of members in case of sucess.
 */
 PriorityQueue eventGetMembers(Event event);
-
-/**
-* eventSetDate: Sets a different date for the provided event.
-*
-* @param event - the event we want to change the date of.
-*/
-void eventSetDate(Event event, Date date);
 
 #endif //EVENT_H_
