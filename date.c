@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+
 #define MIN_DAY 1
 #define DAYS_IN_MONTH 30
 #define MIN_MONTH 1
@@ -9,8 +10,7 @@
 
 /** Type for defining the date */
 
-typedef struct Date_t 
-{
+typedef struct Date_t {
     int day;
     int month;
     int year;
@@ -27,16 +27,17 @@ typedef struct Date_t
 * 	A new Date in case of success.
 */
 
-Date dateCreate(int day, int month, int year)
-{
-    if(!(day>=MIN_DAY&&day<=DAYS_IN_MONTH&&month>=MIN_MONTH&&month<=MONTHS_IN_YEAR))
-    {
+Date dateCreate(int day, int month, int year) {
+    if (!(day >= MIN_DAY && day <= DAYS_IN_MONTH && month >= MIN_MONTH && month <= MONTHS_IN_YEAR)) {
         return NULL;
     }
-    Date d= malloc(sizeof(*d));
-    d->day=day;
-    d->month=month;
-    d->year=year;
+    Date d = malloc(sizeof(*d));
+    if (d == NULL) {
+        return NULL;
+    }
+    d->day = day;
+    d->month = month;
+    d->year = year;
     return d;
 }
 
@@ -45,8 +46,7 @@ Date dateCreate(int day, int month, int year)
 *
 * @param date - Target date to be deallocated. If priority queue is NULL nothing will be done
 */
-void dateDestroy(Date date)
-{
+void dateDestroy(Date date) {
     free(date);
 }
 
@@ -58,28 +58,22 @@ void dateDestroy(Date date)
 * 	NULL if a NULL was sent or a memory allocation failed.
 * 	A Date containing the same elements as date otherwise.
 */
-Date dateCopy(Date date)
-{
-    if(date)
-    {
-    Date d= malloc(sizeof(*d));
-    d->day=date->day;
-    d->month=date->month;
-    d->year=date->year;
-        if(d)
-        {
-            return d;
-        }
-        else
-        {
+Date dateCopy(Date date) {
+    if (date) {
+        Date d = malloc(sizeof(*d));
+        if (d == NULL) {
             return NULL;
         }
-    }
-    else
-    {
+        d->day = date->day;
+        d->month = date->month;
+        d->year = date->year;
+        if (d) {
+            return d;
+        }
+    } else {
         return NULL;
     }
-    
+
 }
 
 /**
@@ -94,18 +88,15 @@ Date dateCopy(Date date)
 * 	false if one of pointers is NULL.
 * 	Otherwise true and the date is assigned to the pointers.
 */
-bool dateGet(Date date, int* day, int* month, int* year)
-{
-    if(day&&month&&year)
-    {
-        *(day)= date->day;
-        *(month)=date->month;
-        *(year)=date->year;
+bool dateGet(Date date, int *day, int *month, int *year) {
+    if (day && month && year) {
+        *(day) = date->day;
+        *(month) = date->month;
+        *(year) = date->year;
         return true;
     }
     return false;
 }
-
 
 
 /**
@@ -117,26 +108,21 @@ bool dateGet(Date date, int* day, int* month, int* year)
 *		A positive integer if date1 arrives after date2.
 */
 
-int timediff(Date date1, Date date2)
-{
+int timediff(Date date1, Date date2) {
     int day1, month1, year1;
     dateGet(date1, &day1, &month1, &year1);
     int day2, month2, year2;
     dateGet(date2, &day2, &month2, &year2);
-    return (year1-year2)*DAYS_IN_YEAR+(month1-month2)*DAYS_IN_MONTH+(day1-day2);
+    return (year1 - year2) * DAYS_IN_YEAR + (month1 - month2) * DAYS_IN_MONTH + (day1 - day2);
 }
 
-int dateCompare(Date date1, Date date2)
-{
-    if ((date1!=NULL) & (date2 != NULL))
-    {
+int dateCompare(Date date1, Date date2) {
+    if ((date1 != NULL) & (date2 != NULL)) {
         return timediff(date1, date2);
-    }
-    else
-    {
+    } else {
         return 0;
     }
-    
+
 }
 
 /**
@@ -145,29 +131,17 @@ int dateCompare(Date date1, Date date2)
 * @param date - Target Date
 *
 */
-void dateTick(Date date)
-{
-    if(date->day==DAYS_IN_MONTH)
-    {
-        date->day=MIN_DAY;
-        if(date->month==MONTHS_IN_YEAR)
-        {
-            date->month=MIN_MONTH;
+void dateTick(Date date) {
+    if (date->day == DAYS_IN_MONTH) {
+        date->day = MIN_DAY;
+        if (date->month == MONTHS_IN_YEAR) {
+            date->month = MIN_MONTH;
             date->year++;
-        }
-        else
-        {
+        } else {
             date->month++;
         }
-    }
-    else
-    {
+    } else {
         date->day++;
     }
-    
+
 }
-
-
-
-
-
