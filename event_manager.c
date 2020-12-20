@@ -179,8 +179,7 @@ EventManagerResult emAddMemberToEvent(EventManager em, int member_id, int event_
     while (member) {
         if (memberGetId(member) == member_id) {
             PriorityQueueResult result =pqInsert(eventGetMembers(event), member, &member_id);
-            if (result == PQ_OUT_OF_MEMORY)
-            {
+            if (result == PQ_OUT_OF_MEMORY) {
                 return EM_OUT_OF_MEMORY;
             }
             return EM_SUCCESS;
@@ -192,40 +191,33 @@ EventManagerResult emAddMemberToEvent(EventManager em, int member_id, int event_
 
 EventManagerResult emChangeEventDate(EventManager em, int event_id, Date new_date)
 {
-    if (!(em && event_id && new_date))
-    {
+    if (!(em && event_id && new_date)) {
         return EM_NULL_ARGUMENT;
     }
-    if (dateCompare(em->Date, new_date) > 0)
-    {
+    if (dateCompare(em->Date, new_date) > 0) {
         return EM_INVALID_DATE;
     }
     Event event = GetEventById(em, event_id);
-    if (!event)
-    {
+    if (!event) {
         return EM_EVENT_ID_NOT_EXISTS;
     }
     EventManagerResult result = checkDateIdName(em, new_date, event_id, eventGetName(event));
-    if (result != EM_SUCCESS)
-    {
+    if (result != EM_SUCCESS) {
         return result;
     }
     PriorityQueue Members = pqCopy(eventGetMembers(event));
-    if (!Members)
-    {
+    if (!Members) {
         return EM_OUT_OF_MEMORY;
     }
     char* name = malloc(sizeof(char) * (strlen(eventGetName(event)) + 1));
-    if (!name)
-    {
+    if (!name) {
         return EM_OUT_OF_MEMORY;
     }
     strcpy(name, eventGetName(event));
     emRemoveEvent(em, event_id);
     emAddEventByDate(em, name, new_date, event_id);
     Member member = pqGetFirst(Members);
-    while (member)
-    {
+    while (member) {
         emAddMemberToEvent(em, memberGetId(member), event_id);
         member = pqGetNext(Members);
     }
@@ -308,8 +300,7 @@ EventManagerResult emTick(EventManager em, int days) {
     Event event = pqGetFirst(em->Events);
     while (event)
     {
-        if (dateCompare(em->Date, eventGetDate(event)) > 0)
-        {
+        if (dateCompare(em->Date, eventGetDate(event)) > 0) {
             emRemoveEvent(em, eventGetId(event));
         }
         event = pqGetNext(em->Events);
@@ -388,8 +379,7 @@ char *emGetNextEvent(EventManager em) {
 }
 
 void emPrintAllEvents(EventManager em, const char* file_name) {
-    if (em && file_name)
-    {
+    if (em && file_name) {
         PriorityQueue Events = pqCopy(em->Events);
         Event event;
         char str[40000];
@@ -414,8 +404,7 @@ void emPrintAllEvents(EventManager em, const char* file_name) {
             pqRemoveElement(Events, event);
         }
         FILE* fp = fopen(file_name, "w");
-        if (pos != 0)
-        {
+        if (pos != 0) {
             fprintf(fp, "%s", str);
         }
         fclose(fp);
@@ -438,8 +427,7 @@ int emGetNextMemberId(EventManager em, PriorityQueue Members) {
 }
 
 void emPrintAllResponsibleMembers(EventManager em, const char *file_name) {
-    if (em && file_name)
-    {
+    if (em && file_name) {
         Member member = NULL;
         PriorityQueue Members = pqCopy(em->Members);
         char str[4000];
@@ -457,8 +445,7 @@ void emPrintAllResponsibleMembers(EventManager em, const char *file_name) {
             pqRemoveElement(Members, member);
         }
         FILE* fp = fopen(file_name, "w");
-        if (pos != 0)
-        {
+        if (pos != 0) {
             fprintf(fp, "%s", str);
         }
         fclose(fp);
