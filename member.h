@@ -119,4 +119,4 @@ int memberGetId(Member member);
 */
 char* memberGetName(Member member);
 
-#endif //DATE_H_
+#endif //MEMBER_H_
