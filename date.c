@@ -73,7 +73,7 @@ Date dateCopy(Date date) {
     } else {
         return NULL;
     }
-
+    return NULL;
 }
 
 /**
