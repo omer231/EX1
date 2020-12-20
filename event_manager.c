@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #define ELEMENT_NOT_FOUND -1
-#define DEFAULT_EVENT_PRIORITY 1
 
 struct EventManager_t {
     PriorityQueue Events;
