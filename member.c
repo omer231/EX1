@@ -1,6 +1,6 @@
 #ifndef MEMBER_H_
 #define MEMBER_H_
-
+#define MEMBER_NULL_ERR -1
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
@@ -77,11 +77,17 @@ Member createMember(char *member_name, int member_id) {
 }
 
 int memberGetId(Member member) {
-    return member->member_id;
+    if (member) {
+        return member->member_id;
+    }
+    return MEMBER_NULL_ERR;
 }
 
 char *memberGetName(Member member) {
-    return member->MemberName;
+    if (member) {
+        return member->MemberName;
+    }
+    return NULL;
 }
 
 #endif //MEMBER_H_
