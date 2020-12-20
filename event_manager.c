@@ -297,14 +297,6 @@ EventManagerResult emTick(EventManager em, int days) {
         days--;
         dateTick(em->Date);
     }
-    Event event = pqGetFirst(em->Events);
-    while (event)
-    {
-        if (dateCompare(em->Date, eventGetDate(event)) > 0) {
-            emRemoveEvent(em, eventGetId(event));
-        }
-        event = pqGetNext(em->Events);
-    }
     return EM_SUCCESS;
 }
 
