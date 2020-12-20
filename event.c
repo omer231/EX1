@@ -1,5 +1,3 @@
-#ifndef EVENT_H_
-#define EVENT_H_
 #define EVENT_NULL_ERR -1
 #include "date.h"
 #include <string.h>
@@ -113,6 +111,3 @@ PriorityQueue eventGetMembers(Event event) {
     }
     return NULL;
 }
-
-
-#endif //EVENT_H_

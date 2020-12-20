@@ -1,5 +1,3 @@
-#ifndef MEMBER_H_
-#define MEMBER_H_
 #define MEMBER_NULL_ERR -1
 #include <stdlib.h>
 #include <stdbool.h>
@@ -89,5 +87,3 @@ char *memberGetName(Member member) {
     }
     return NULL;
 }
-
-#endif //MEMBER_H_
